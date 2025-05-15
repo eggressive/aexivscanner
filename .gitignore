@@ -190,3 +190,26 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Scanner output files
+*.xlsx
+*.json
+fair_values.json
+.deps_installed
+
+# Backup files
+backups/
+backups/*
+aex_scanner_backup_*.py
+
+# Visualizations
+visualizations/
+
+# IDE files
+.vscode/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db

@@ -34,6 +34,11 @@ def run_visualizer():
 def update_fair_values():
     """Run the fair value updater"""
     logger.info("Running Fair Value Updater...")
+    # First apply any saved SimplyWall.st values
+    logger.info("Applying saved SimplyWall.st fair values...")
+    subprocess.run([sys.executable, 'update_simply_wall_st.py', '--apply-only'])
+    # Then run the analyst target price updater
+    logger.info("Fetching analyst target prices...")
     subprocess.run([sys.executable, 'fair_value_updater.py'])
     
 def setup_environment():
@@ -45,6 +50,7 @@ def setup_environment():
         'aex_scanner.py',
         'aex_visualizer.py',
         'fair_value_updater.py',
+        'update_simply_wall_st.py',
         'requirements.txt'
     ]
     

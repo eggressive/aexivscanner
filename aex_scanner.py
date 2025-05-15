@@ -31,19 +31,19 @@ AEX_TICKERS = [
     'WKL.AS', 'URW.AS', 'UNA.AS', 'MT.AS', 'RDSA.AS', 'RELX.AS', 'PRX.AS'
 ]
 
-# Dictionary to store fair value estimates - add your own estimates
-# These are placeholder values and should be adjusted based on your analysis
+# Dictionary to store fair value estimates - add your own estimates from SimplyWall.st
+# These are fair value estimates sourced from SimplyWall.st where available
 FAIR_VALUE_ESTIMATES = {
     'ADYEN.AS': 1500.0,
-    'ASML.AS': 800.0,
-    'AD.AS': 32.0,
+    'ASML.AS': 621.59,  # Updated from SimplyWall.st on 2025-05-16
+    'AD.AS': 52.58,  # Updated from SimplyWall.st on 2025-05-16
     'AKZA.AS': 105.0,
     'ABN.AS': 14.0,
-    'DSM.AS': 160.0,
+    'DSM.AS': 141.75,  # Updated from SimplyWall.st on 2025-05-16
     'HEIA.AS': 120.0,
     'IMCD.AS': 170.0,
-    'INGA.AS': 13.0,
-    'KPN.AS': 3.5,
+    'INGA.AS': 43.98,  # Updated from SimplyWall.st on 2025-05-16
+    'KPN.AS': 9.75,  # Updated from SimplyWall.st on 2025-05-16
     'NN.AS': 45.0,
     'PHIA.AS': 50.0,
     'RAND.AS': 65.0,

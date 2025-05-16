@@ -28,3 +28,12 @@ if [ -d "visualizations" ]; then
         echo "Visualizations created in: $(pwd)/visualizations/"
     fi
 fi
+
+# Open the outputs directory if it exists
+if [ -d "outputs" ]; then
+    if command -v xdg-open &> /dev/null; then
+        echo "Excel results saved in: $(pwd)/outputs/"
+    else
+        echo "Excel results saved in: $(pwd)/outputs/"
+    fi
+fi

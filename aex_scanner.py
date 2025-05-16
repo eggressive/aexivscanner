@@ -12,6 +12,9 @@ import time
 import openpyxl
 from openpyxl.styles import PatternFill, Font
 import logging
+import random
+import requests
+from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
 
 # Setup logging
 logging.basicConfig(
@@ -34,62 +37,142 @@ AEX_TICKERS = [
 # Dictionary to store fair value estimates - add your own estimates from SimplyWall.st
 # These are fair value estimates sourced from SimplyWall.st where available
 FAIR_VALUE_ESTIMATES = {
-    'ADYEN.AS': 1500.0,
-    'ASML.AS': 621.59,  # Updated from SimplyWall.st on 2025-05-16
-    'AD.AS': 52.58,  # Updated from SimplyWall.st on 2025-05-16
-    'AKZA.AS': 105.0,
-    'ABN.AS': 14.0,
-    'DSM.AS': 141.75,  # Updated from SimplyWall.st on 2025-05-16
-    'HEIA.AS': 120.0,
-    'IMCD.AS': 170.0,
-    'INGA.AS': 43.98,  # Updated from SimplyWall.st on 2025-05-16
-    'KPN.AS': 9.75,  # Updated from SimplyWall.st on 2025-05-16
-    'NN.AS': 45.0,
-    'PHIA.AS': 50.0,
-    'RAND.AS': 65.0,
-    'REN.AS': 40.0,
-    'WKL.AS': 125.0,
-    'URW.AS': 80.0,
-    'UNA.AS': 60.0,
-    'MT.AS': 30.0,
-    'RDSA.AS': 35.0,
-    'RELX.AS': 40.0,
-    'PRX.AS': 20.0,
+    'ADYEN.AS': 1868.553,
+    'ASML.AS': 768.84375,
+    'AD.AS': 36.37765,
+    'AKZA.AS': 69.0,
+    'ABN.AS': 20.50625,
+    'HEIA.AS': 91.08273,
+    'IMCD.AS': 158.86667,
+    'INGA.AS': 19.55111,
+    'KPN.AS': 4.00857,
+    'NN.AS': 53.75938,
+    'PHIA.AS': 25.45814,
+    'RAND.AS': 40.86875,
+    'REN.AS': 51.4,
+    'WKL.AS': 163.95833,
+    'UNA.AS': 62.25,
+    'MT.AS': 31.092327,
+    'PRX.AS': 54.25765,
 }
 
 class AEXScanner:
     def __init__(self):
         """Initialize AEX Scanner"""
-        self.output_file = f"aex_stock_valuation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        self.data = {}
-    
-    def fetch_stock_data(self):
-        """Fetch current stock data from Yahoo Finance"""
-        logger.info("Fetching stock data from Yahoo Finance...")
+        # Create outputs directory if it doesn't exist
+        self.output_dir = "outputs"
+        os.makedirs(self.output_dir, exist_ok=True)
         
-        for ticker in AEX_TICKERS:
+        # Set output file path in the outputs directory
+        filename = f"aex_stock_valuation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        self.output_file = os.path.join(self.output_dir, filename)
+        
+        self.data = {}
+        # For rate limiting handling
+        self.max_retries = 3
+        self.retry_delay = 2  # seconds
+        self.required_fields = ['name', 'price', 'shares_outstanding', 'fair_value']
+        self.validation_results = {'success': [], 'incomplete': [], 'failed': []}
+    
+    def fetch_with_retry(self, ticker):
+        """Fetch data for a ticker with retry logic for rate limiting"""
+        retries = 0
+        while retries <= self.max_retries:
             try:
                 stock = yf.Ticker(ticker)
                 info = stock.info
                 
+                # Check if response seems valid
+                if not info or not isinstance(info, dict) or 'shortName' not in info:
+                    if retries < self.max_retries:
+                        retries += 1
+                        wait_time = self.retry_delay * (1 + random.random())  # Add jitter
+                        logger.warning(f"Incomplete data for {ticker}. Retrying in {wait_time:.2f}s (attempt {retries}/{self.max_retries})")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        raise ValueError("Received incomplete data after maximum retries")
+                
                 # Extract relevant data
-                self.data[ticker] = {
+                data = {
                     'name': info.get('shortName', ticker),
                     'price': info.get('currentPrice', None),
                     'shares_outstanding': info.get('sharesOutstanding', None),
                     'fair_value': FAIR_VALUE_ESTIMATES.get(ticker, None)
                 }
                 
-                logger.info(f"Fetched data for {ticker}: {self.data[ticker]['name']}")
+                return data
+                
+            except (ConnectionError, Timeout, HTTPError) as e:
+                if retries < self.max_retries:
+                    retries += 1
+                    wait_time = self.retry_delay * (2 ** retries) * (1 + random.random())  # Exponential backoff with jitter
+                    logger.warning(f"Rate limit or connection error for {ticker}: {str(e)}. Retrying in {wait_time:.2f}s (attempt {retries}/{self.max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    logger.error(f"Failed to fetch data for {ticker} after {self.max_retries} retries: {str(e)}")
+                    raise
+            except Exception as e:
+                logger.error(f"Unexpected error fetching data for {ticker}: {str(e)}")
+                raise
+        
+        return None
+        
+    def validate_stock_data(self, ticker, data):
+        """Validate stock data to check for missing or incomplete fields"""
+        if data is None:
+            self.validation_results['failed'].append(ticker)
+            return False
+            
+        missing_fields = [field for field in self.required_fields if field not in data or data[field] is None]
+        
+        if missing_fields:
+            self.validation_results['incomplete'].append((ticker, missing_fields))
+            logger.warning(f"Incomplete data for {ticker}: Missing {', '.join(missing_fields)}")
+            return False
+        else:
+            self.validation_results['success'].append(ticker)
+            return True
+    
+    def fetch_stock_data(self):
+        """Fetch current stock data from Yahoo Finance with enhanced error handling"""
+        logger.info("Fetching stock data from Yahoo Finance...")
+        
+        # Reset validation results
+        self.validation_results = {'success': [], 'incomplete': [], 'failed': []}
+        
+        for ticker in AEX_TICKERS:
+            try:
+                # Fetch data with retry mechanism
+                stock_data = self.fetch_with_retry(ticker)
+                
+                # Validate the data
+                if self.validate_stock_data(ticker, stock_data):
+                    self.data[ticker] = stock_data
+                    logger.info(f"Successfully fetched and validated data for {ticker}: {stock_data['name']}")
+                else:
+                    logger.warning(f"Skipping {ticker} due to validation failure")
                 
             except Exception as e:
-                logger.error(f"Error fetching data for {ticker}: {str(e)}")
+                logger.error(f"Error processing {ticker}: {str(e)}")
+                self.validation_results['failed'].append(ticker)
         
-        # Remove tickers with incomplete data
-        for ticker in list(self.data.keys()):
-            if None in self.data[ticker].values():
-                logger.warning(f"Removing {ticker} due to incomplete data")
-                del self.data[ticker]
+        # Log summary of fetch operation
+        total_tickers = len(AEX_TICKERS)
+        success_count = len(self.validation_results['success'])
+        incomplete_count = len(self.validation_results['incomplete'])
+        failed_count = len(self.validation_results['failed'])
+        
+        logger.info(f"Data fetch summary: {success_count}/{total_tickers} successful, "
+                   f"{incomplete_count} incomplete, {failed_count} failed")
+        
+        if incomplete_count > 0:
+            logger.warning("Tickers with incomplete data: " + 
+                          ", ".join([t[0] for t in self.validation_results['incomplete']]))
+        
+        if failed_count > 0:
+            logger.warning("Tickers that failed completely: " + 
+                          ", ".join(self.validation_results['failed']))
     
     def calculate_metrics(self):
         """Calculate valuation metrics for each stock"""
@@ -119,6 +202,12 @@ class AEXScanner:
                 
             except Exception as e:
                 logger.error(f"Error calculating metrics for {ticker}: {str(e)}")
+                # Mark this ticker as having calculation errors
+                if ticker not in self.validation_results['failed']:
+                    self.validation_results['failed'].append(ticker)
+                # Remove from data dictionary to prevent downstream errors
+                if ticker in self.data:
+                    del self.data[ticker]
     
     def rank_stocks(self):
         """Rank stocks by discount percentage (undervaluation)"""
@@ -166,18 +255,61 @@ class AEXScanner:
             output_df['Fair Value'] = output_df['Fair Value'].map('{:.2f}'.format)
             output_df['Discount %'] = output_df['Discount %'].map('{:.2f}%'.format)
             
-            # Write to Excel
-            output_df.to_excel(writer, sheet_name='AEX Valuation', index=True, index_label='Ticker')
+            # Write to Excel with startrow=2 to leave room for title and descriptions
+            output_df.to_excel(writer, sheet_name='AEX Valuation', index=True, index_label='Ticker', startrow=2)
             
             # Apply formatting
             workbook = writer.book
             worksheet = writer.sheets['AEX Valuation']
             
-            # Add a header with timestamp
+            # Add a header with timestamp in row 1
             worksheet['A1'] = f"AEX Stock Valuation Scanner - Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             worksheet.merge_cells('A1:H1')
             header_font = Font(bold=True, size=14)
             worksheet['A1'].font = header_font
+            
+            # Add column descriptions in row 2
+            descriptions = {
+                'A': 'Ticker: Stock ticker symbol (Amsterdam Exchange)',
+                'B': 'Company: Company name',
+                'C': 'Current Price: Current stock price in Euros',
+                'D': 'Fair Value: Estimated fair value per share based on DCF analysis',
+                'E': 'Market Cap (M): Current market capitalization in millions',
+                'F': 'Fair Market Cap (M): Fair market capitalization based on fair value in millions',
+                'G': 'Discount Margin (M): Difference between fair and current market cap in millions',
+                'H': 'Discount %: How undervalued/overvalued the stock is'
+            }
+            
+            # Insert descriptions in row 2
+            for col, description in descriptions.items():
+                worksheet[f'{col}2'] = description
+                worksheet[f'{col}2'].font = Font(italic=True, size=8)
+                
+            # Set column widths to fit descriptions
+            for col in 'ABCDEFGH':
+                worksheet.column_dimensions[col].width = 20
+                    
+            # Add conditional formatting to highlight undervalued/overvalued stocks
+            # Create fill colors
+            green_fill = PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid')  # Light green
+            red_fill = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid')    # Light red
+            
+            # Apply color formatting to the Discount % column
+            discount_col = 'H'
+            # Data starts at row 3 (after title and descriptions)
+            for row_num in range(3 + 1, worksheet.max_row + 1):  # +1 to skip header row
+                cell = worksheet[f"{discount_col}{row_num}"]
+                if cell.value:
+                    # Extract numeric value from formatted string (remove % sign and convert to float)
+                    try:
+                        value_str = cell.value.replace('%', '').strip()
+                        value = float(value_str)
+                        if value >= 10:  # Undervalued by 10% or more
+                            cell.fill = green_fill
+                        elif value <= -10:  # Overvalued by 10% or more
+                            cell.fill = red_fill
+                    except (ValueError, AttributeError):
+                        pass  # Skip if can't convert to float
             
         logger.info(f"Results saved to {self.output_file}")
         
@@ -186,11 +318,32 @@ class AEXScanner:
         logger.info("Starting AEX DCF Scanner...")
         
         self.fetch_stock_data()
+        
+        if not self.data:
+            logger.error("No valid stock data was fetched. Aborting scan.")
+            return None
+            
         self.calculate_metrics()
         ranked_df = self.rank_stocks()
+        
+        if ranked_df.empty:
+            logger.error("No stocks with valid metrics to rank. Aborting scan.")
+            return None
+            
         self.save_to_excel(ranked_df)
         
-        logger.info("Scan completed successfully!")
+        # Generate a comprehensive summary
+        total_tickers = len(AEX_TICKERS)
+        processed_tickers = len(self.data)
+        skipped_tickers = total_tickers - processed_tickers
+        
+        summary = (
+            f"Scan completed successfully!\n"
+            f"Processed {processed_tickers}/{total_tickers} tickers successfully.\n"
+            f"Skipped {skipped_tickers} tickers due to data issues."
+        )
+        
+        logger.info(summary)
         return self.output_file
 
 if __name__ == "__main__":

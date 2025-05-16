@@ -131,17 +131,133 @@ To add more stocks to the scanner:
 
 ## Output
 
-The scanner generates an Excel file with the following metrics:
+The scanner generates an Excel file in the `outputs/` directory with the following metrics:
 
-- Company name
-- Current Price
-- Fair Value
-- Market Cap (in millions)
-- Fair Market Cap (in millions)
-- Discount Margin (in millions)
-- Discount Percentage
+- **Ticker**: Stock ticker symbol (Amsterdam Exchange)
+- **Company**: Company name
+- **Current Price**: Current stock price in Euros
+- **Fair Value**: Estimated fair value per share based on DCF analysis
+- **Market Cap (M)**: Current market capitalization in millions
+- **Fair Market Cap (M)**: Fair market capitalization based on fair value in millions
+- **Discount Margin (M)**: Difference between fair and current market cap in millions
+- **Discount %**: How undervalued/overvalued the stock is
 
-Stocks are ranked by discount percentage (undervaluation) in descending order.
+Stocks are ranked by discount percentage (undervaluation) in descending order. The output file name contains a timestamp to keep track of when each scan was performed (e.g., `aex_stock_valuation_20250516_111000.xlsx`).
+
+### Excel Features
+
+- **Header Descriptions**: Each column has a description explaining the data
+- **Conditional Formatting**: 
+  - Undervalued stocks (≥10% discount) are highlighted in green
+  - Overvalued stocks (≥10% premium) are highlighted in red
+- **Formatted Numbers**: All values are properly formatted with currency and percentage indicators
+
+### Visualization Features
+
+The scanner includes a visualization tool that generates the following charts in the `visualizations/` directory:
+
+- **Discount Percentage Bar Chart**: Shows which stocks are most undervalued/overvalued
+- **Current Price vs Fair Value**: Side-by-side comparison of current stock prices and fair values
+- **Market Cap Comparison**: Visual comparison of current versus fair market capitalization
+- **Discount Margin Waterfall**: Shows the absolute discount/premium in millions of euros
+
+To generate the visualizations, run:
+
+```bash
+python aex_visualizer.py
+```
+
+or use the automated workflow:
+
+```bash
+./run_scanner.sh
+```
+
+All visualizations are saved with timestamps to track when they were generated.
+
+## Directory Structure
+
+The scanner organizes its files in the following directories:
+
+- **outputs/**: Contains all generated Excel files with the scan results
+  - Files are named with timestamps, e.g. `aex_stock_valuation_20250516_111000.xlsx`
+  
+- **visualizations/**: Contains all generated charts and visualizations
+  - Charts are organized by type and include timestamps
+  
+- **backups/**: Contains backup files created when updating fair values
+  - Backups are created automatically before making changes
+
+This organization keeps your workspace clean and makes it easier to find specific files.
+
+## Troubleshooting & Data Validation
+
+### Handling Data Issues
+
+The scanner now includes robust error handling for common issues:
+
+- **Rate Limiting**: Implements exponential backoff with jitter to handle API rate limits
+- **Connection Issues**: Automatically retries failed connections
+- **Data Validation**: Validates data completeness before processing
+- **Error Reporting**: Provides detailed logs of data quality issues
+
+When running the scanner, you'll see a summary of successful and failed ticker retrievals:
+
+```bash
+Scan completed successfully!
+Processed 17/21 tickers successfully.
+Skipped 4 tickers due to data issues.
+```
+
+### Validating Individual Tickers
+
+To troubleshoot data issues with specific tickers, use the included validation script:
+
+```bash
+# Check a specific ticker
+python validate_ticker.py ASML.AS
+
+# Check multiple tickers
+python validate_ticker.py ADYEN.AS INGA.AS ASML.AS
+
+# Check all AEX tickers
+python validate_ticker.py --all
+
+# Get more detailed information
+python validate_ticker.py --verbose ASML.AS
+```
+
+This tool will:
+
+- Check if the ticker data is available from Yahoo Finance
+- Validate which fields are present or missing
+- Show the current values for key metrics
+- Help identify why certain tickers might be failing
+
+Example output:
+
+```bash
+Validating ASML.AS...
+  ✅ ASML.AS has all required fields
+
+Key fields:
+  shortName: ASML HOLDING
+  longName: ASML Holding N.V.
+  currentPrice: 675.6
+  sharesOutstanding: 393200000
+  marketCap: 265645916160
+  volume: 148069
+  averageVolume: 905397
+  exchange: AMS
+  currency: EUR
+```
+
+For tickers with issues, the output will indicate what's missing:
+
+```bash
+Validating DSM.AS...
+  ⚠️ DSM.AS is missing 2/9 fields: currentPrice, sharesOutstanding
+```
 
 ## License
 

@@ -45,6 +45,13 @@ def setup_environment():
     """Check and set up the environment"""
     logger.info("Checking environment...")
     
+    # Create required directories
+    required_dirs = ['outputs', 'visualizations', 'backups']
+    for directory in required_dirs:
+        if not os.path.exists(directory):
+            logger.info(f"Creating {directory} directory...")
+            os.makedirs(directory, exist_ok=True)
+    
     # Check for required files
     required_files = [
         'aex_scanner.py',

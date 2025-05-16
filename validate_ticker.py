@@ -12,16 +12,17 @@ import time
 import random
 from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
 
-# Import tickers list from the scanner
+# Import tickers list from the central module
 sys.path.append('.')
 try:
-    from aex_scanner import AEX_TICKERS
+    from aex_tickers import AEX_TICKERS
 except ImportError:
-    print("WARNING: Could not import AEX_TICKERS from aex_scanner.py, using default list")
+    print("WARNING: Could not import AEX_TICKERS from aex_tickers.py, using default list")
+    # Default tickers as fallback
     AEX_TICKERS = [
         'ADYEN.AS', 'ASML.AS', 'AD.AS', 'AKZA.AS', 'ABN.AS', 'DSM.AS', 'HEIA.AS', 
         'IMCD.AS', 'INGA.AS', 'KPN.AS', 'NN.AS', 'PHIA.AS', 'RAND.AS', 'REN.AS', 
-        'WKL.AS', 'URW.AS', 'UNA.AS', 'MT.AS', 'RDSA.AS', 'RELX.AS', 'PRX.AS'
+        'WKL.AS', 'URW.AS', 'UNA.AS', 'MT.AS', 'RDSA.AS', 'PRX.AS'
     ]
 
 # Key fields we want to check

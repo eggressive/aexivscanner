@@ -126,8 +126,40 @@ The script will update the values in `aex_scanner.py` and keep a record of all u
 
 To add more stocks to the scanner:
 
-1. Add the ticker symbol to the `AEX_TICKERS` list
-2. Add a corresponding fair value estimate to the `FAIR_VALUE_ESTIMATES` dictionary
+1. Add the ticker symbol to the `tickers.json` file
+2. Add a corresponding fair value estimate to the `FAIR_VALUE_ESTIMATES` dictionary in aex_scanner.py
+
+The `tickers.json` file serves as the single source of truth for all ticker symbols used across the application.
+
+### Updating AEX Tickers
+
+You can automatically update the list of AEX components from Yahoo Finance:
+
+```bash
+# Update tickers.json with the latest AEX components
+./update_aex_tickers.sh
+```
+
+This script will:
+
+- Scrape the current AEX components from Yahoo Finance
+- Update the tickers.json file with the latest ticker symbols
+- Create a backup of the previous tickers list
+- Verify the update was successful
+
+### Ticker Source Management
+
+The application includes tools to check where ticker symbols are being loaded from:
+
+```bash
+# Display all tickers with their source information
+python aex_tickers.py --source
+
+# Check if tickers are loaded from the expected source
+python aex_tickers.py --check 
+```
+
+This helps verify if the system is using tickers from the JSON file as expected or falling back to default tickers due to configuration issues.
 
 ## Output
 

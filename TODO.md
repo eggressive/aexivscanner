@@ -1,14 +1,5 @@
 # AEX IV Scanner - TODOs
 
-## Completed Enhancements
-
-1. ✅ Implement robust error handling for Yahoo Finance API
-   - Added exponential backoff with jitter for rate limiting
-   - Implemented automatic retries for connection issues
-   - Added comprehensive data validation
-   - Created detailed error logging and reporting
-   - Built a diagnostic tool (`validate_ticker.py`) for troubleshooting
-
 ## Future Enhancements
 
 1. Investigate possibility to download fair value estimates for free
@@ -29,12 +20,26 @@
      - SimplyWall.st values
      - Calculated DCF values
 
-3. Create a single source of truth for AEX stock tickers
-   - Move AEX_TICKERS dictionary to an external data file (JSON or YAML)
-   - Update all modules to read from this common data source:
+## Completed Enhancements
+
+1. ✅ Implement robust error handling for Yahoo Finance API
+   - Added exponential backoff with jitter for rate limiting
+   - Implemented automatic retries for connection issues
+   - Added comprehensive data validation
+   - Created detailed error logging and reporting
+   - Built a diagnostic tool (`validate_ticker.py`) for troubleshooting
+
+2. ✅ Create a single source of truth for AEX stock tickers
+   - AEX_TICKERS are now stored in tickers.json
+   - All modules read from this common data source via aex_tickers.py:
      - aex_scanner.py
      - fair_value_updater.py
      - aex_visualizer.py
      - validate_ticker.py
    - Ensures consistent ticker lists across the application
    - Simplifies adding/removing stocks from the scanner
+   
+3. ✅ Remove hardcoded file paths from JSON files
+   - Removed filepath comments from tickers.json
+   - Updated update_tickers.py to not add filepath comments
+   - Ensured all modules use relative paths consistently

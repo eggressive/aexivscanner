@@ -9,7 +9,7 @@ echo "Checking a sample of AEX stocks for data availability..."
 echo ""
 
 # Run the validator on a few representative stocks
-python validate_ticker.py ASML.AS KPN.AS DSM.AS RELX.AS
+python validate_ticker.py ASML.AS KPN.AS AD.AS PRX.AS
 
 echo ""
 echo "============================================="

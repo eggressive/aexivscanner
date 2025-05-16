@@ -23,12 +23,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# AEX stock tickers
-AEX_TICKERS = [
-    'ADYEN.AS', 'ASML.AS', 'AD.AS', 'AKZA.AS', 'ABN.AS', 'DSM.AS', 'HEIA.AS', 
-    'IMCD.AS', 'INGA.AS', 'KPN.AS', 'NN.AS', 'PHIA.AS', 'RAND.AS', 'REN.AS', 
-    'WKL.AS', 'URW.AS', 'UNA.AS', 'MT.AS', 'RDSA.AS', 'RELX.AS', 'PRX.AS'
-]
+# Import AEX stock tickers from central module
+from aex_tickers import AEX_TICKERS
 
 def update_fair_values():
     """

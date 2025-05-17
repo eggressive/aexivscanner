@@ -2,13 +2,20 @@
 
 ## Future Enhancements
 
-1. Investigate possibility to download fair value estimates for free
+1. Investigate ticker validation errors in update_tickers.py
+   - Debug HTTP 500 errors occurring with several tickers (ASML.AS, IMCD.AS, INGA.AS, MT.AS, RDSA.AS, TKWY.AS)
+   - Research why some tickers can't be validated (DSM.AS, URW.AS)
+   - Implement more robust error handling for these specific cases
+   - Consider adding a retry mechanism with longer delays for HTTP 500 errors
+   - Update documentation with troubleshooting steps for ticker validation issues
+
+2. Investigate possibility to download fair value estimates for free
    - Research public APIs that provide DCF or fair value estimates
    - Look for alternatives to SimplyWall.st that offer free data access
    - Explore web scraping options (with proper respect for terms of service)
    - Consider academic or open-source valuation models
 
-2. Calculate simplified DCF model as a Python function
+3. Calculate simplified DCF model as a Python function
    - Implement basic DCF calculation based on:
      - Current free cash flow
      - Expected growth rate

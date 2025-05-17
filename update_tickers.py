@@ -9,7 +9,9 @@ import os
 import logging
 import sys
 import time
+import random
 import yfinance as yf
+from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
 
 # Setup logging
 logging.basicConfig(
@@ -24,6 +26,63 @@ logger = logging.getLogger(__name__)
 
 # AEX index ticker
 AEX_INDEX_TICKER = "^AEX"
+
+# Known problematic tickers that should be included even if validation fails
+KNOWN_PROBLEMATIC_TICKERS = ["RDSA.AS", "DSM.AS", "URW.AS"]
+
+# Global parameters for validation
+VALIDATION_PARAMS = {
+    'max_retries': 3,
+    'base_wait': 2,
+    'http_error_multiplier': 3
+}
+
+def validate_ticker_with_retries(ticker, max_retries=3, base_wait=2, http_error_multiplier=3):
+    """
+    Validate a ticker with robust retry logic
+    
+    Args:
+        ticker (str): The ticker symbol to validate
+        max_retries (int): Maximum number of retry attempts
+        base_wait (int): Base wait time in seconds for the exponential backoff
+        http_error_multiplier (int): Multiplier for HTTP errors to increase wait time
+        
+    Returns:
+        bool: True if validation successful, False otherwise
+    """
+    retries = 0
+    
+    while retries <= max_retries:
+        try:
+            stock = yf.Ticker(ticker)
+            info = stock.info
+            if info and 'regularMarketPrice' in info and info['regularMarketPrice'] is not None:
+                logger.info(f"Validated ticker: {ticker}")
+                return True
+            else:
+                if retries < max_retries:
+                    retries += 1
+                    wait_time = base_wait * (2 ** retries) * (1 + random.random())
+                    logger.debug(f"Could not validate ticker: {ticker}. Retrying in {wait_time:.2f}s (attempt {retries}/{max_retries})")
+                    time.sleep(wait_time)
+                else:
+                    logger.warning(f"Could not validate ticker: {ticker}")
+                    return False
+        except (ConnectionError, Timeout, HTTPError) as e:
+            if retries < max_retries:
+                retries += 1
+                # Use a longer wait time for HTTP errors
+                wait_time = base_wait * http_error_multiplier * (2 ** retries) * (1 + random.random())
+                logger.debug(f"Error validating ticker {ticker}: {str(e)}. Retrying in {wait_time:.2f}s (attempt {retries}/{max_retries})")
+                time.sleep(wait_time)
+            else:
+                logger.warning(f"Error validating ticker {ticker}: {str(e)}")
+                return False
+        except Exception as e:
+            logger.warning(f"Unexpected error validating ticker {ticker}: {str(e)}")
+            return False
+    
+    return False
 
 def fetch_aex_components(validate=True):
     """
@@ -67,19 +126,32 @@ def fetch_aex_components(validate=True):
             potential_tickers = list(dict.fromkeys(potential_tickers))
             
             if validate:
-                # Validate each ticker by trying to fetch its data
+                # Validate each ticker by trying to fetch its data with retry logic
                 valid_tickers = []
+                problematic_included = []
+                
                 for ticker in potential_tickers:
-                    try:
-                        stock = yf.Ticker(ticker)
-                        info = stock.info
-                        if info and 'regularMarketPrice' in info and info['regularMarketPrice'] is not None:
-                            logger.info(f"Validated ticker: {ticker}")
-                            valid_tickers.append(ticker)
-                        else:
-                            logger.warning(f"Could not validate ticker: {ticker}")
-                    except Exception as e:
-                        logger.warning(f"Error validating ticker {ticker}: {str(e)}")
+                    # Add a small delay between requests to avoid overloading the API
+                    time.sleep(0.2)
+                    
+                    # Handle known problematic tickers differently
+                    if ticker in KNOWN_PROBLEMATIC_TICKERS:
+                        valid_tickers.append(ticker)
+                        problematic_included.append(ticker)
+                        logger.info(f"Including known problematic ticker: {ticker}")
+                        continue
+                    
+                    # Use global validation parameters
+                    if validate_ticker_with_retries(
+                        ticker, 
+                        max_retries=VALIDATION_PARAMS['max_retries'], 
+                        base_wait=VALIDATION_PARAMS['base_wait'],
+                        http_error_multiplier=VALIDATION_PARAMS['http_error_multiplier']
+                    ):
+                        valid_tickers.append(ticker)
+                
+                if problematic_included:
+                    logger.info(f"Included {len(problematic_included)} known problematic tickers: {', '.join(problematic_included)}")
                 
                 components = valid_tickers
             else:
@@ -154,11 +226,25 @@ def main():
                       help='Force update even if fewer than 10 tickers are found')
     parser.add_argument('--dry-run', action='store_true',
                       help='Show what would be updated without making changes')
+    parser.add_argument('--retries', type=int, default=3,
+                      help='Maximum number of retry attempts for ticker validation (default: 3)')
+    parser.add_argument('--base-wait', type=int, default=2,
+                      help='Base wait time in seconds for backoff strategy (default: 2)')
+    parser.add_argument('--http-multiplier', type=int, default=3,
+                      help='Wait time multiplier for HTTP errors (default: 3)')
     args = parser.parse_args()
     
     print("Updating AEX tickers from Yahoo Finance...")
     
-    # Fetch AEX components
+    # Update global validation parameters
+    global VALIDATION_PARAMS
+    VALIDATION_PARAMS = {
+        'max_retries': args.retries,
+        'base_wait': args.base_wait,
+        'http_error_multiplier': args.http_multiplier
+    }
+    
+    # Fetch AEX components with validation setting
     tickers = fetch_aex_components(validate=args.validate)
     
     if not tickers:

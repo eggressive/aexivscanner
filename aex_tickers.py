@@ -13,36 +13,80 @@ import os
 import logging
 import sys
 import argparse
+import csv
 
 # Setup logging
 logger = logging.getLogger(__name__)
 
-def load_tickers(return_source_info=False):
+def load_tickers(return_source_info=False, update_json=False):
     """
-    Load AEX tickers from external JSON file
+    Load AEX tickers using the following priority:
+    1. CSV file (amsterdam_aex_tickers.csv) - primary source of truth
+    2. JSON file (tickers.json) - fallback option
     
     Args:
         return_source_info (bool): If True, returns a tuple of (tickers, source_info)
                                   If False, returns just the list of tickers
+        update_json (bool): If True and tickers are loaded from CSV, update the JSON file
     
     Returns:
         If return_source_info=False: List of ticker symbols
         If return_source_info=True: Tuple of (tickers, source_info) where source_info is a dict
     """
+    # Try loading from CSV file first (primary source of truth)
+    csv_file = os.path.join(os.path.dirname(__file__), 'amsterdam_aex_tickers.csv')
     tickers_file = os.path.join(os.path.dirname(__file__), 'tickers.json')
-    default_tickers = [
-        'ADYEN.AS', 'ASML.AS', 'AD.AS', 'AKZA.AS', 'ABN.AS', 'DSM.AS', 'HEIA.AS', 
-        'IMCD.AS', 'INGA.AS', 'KPN.AS', 'NN.AS', 'PHIA.AS', 'RAND.AS', 'REN.AS', 
-        'WKL.AS', 'URW.AS', 'UNA.AS', 'MT.AS', 'RDSA.AS', 'PRX.AS'
-    ]
     
     source_info = {
-        'source': 'default', 
-        'reason': None, 
+        'source': 'error', 
+        'reason': 'No ticker sources available', 
         'path': None,
-        'tickers_count': len(default_tickers)
+        'tickers_count': 0
     }
     
+    # Try loading from CSV file first (primary source of truth)
+    try:
+        if os.path.exists(csv_file):
+            csv_tickers = []
+            with open(csv_file, 'r') as f:
+                # Skip lines that start with //
+                while True:
+                    pos = f.tell()
+                    line = f.readline()
+                    if not line or not line.startswith('//'):
+                        f.seek(pos)
+                        break
+                
+                # Parse the CSV content
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if 'yahoo_ticker' in row and row['yahoo_ticker'].strip():
+                        csv_tickers.append(row['yahoo_ticker'].strip())
+            
+            if csv_tickers and len(csv_tickers) > 0:
+                logger.info(f"Loaded {len(csv_tickers)} tickers from {csv_file}")
+                source_info = {
+                    'source': 'csv_file',
+                    'reason': 'Successfully loaded from Amsterdam AEX CSV file',
+                    'path': csv_file,
+                    'tickers_count': len(csv_tickers)
+                }
+                
+                # Update the JSON file if requested
+                if update_json:
+                    update_json_from_csv(csv_tickers, tickers_file)
+                    
+                if return_source_info:
+                    return csv_tickers, source_info
+                return csv_tickers
+            else:
+                logger.warning(f"CSV file found but no valid tickers extracted from {csv_file}")
+        else:
+            logger.warning(f"CSV file {csv_file} not found, trying JSON fallback")
+    except Exception as e:
+        logger.warning(f"Error loading tickers from CSV: {str(e)}, trying JSON fallback")
+    
+    # Fallback: Try loading from JSON file
     try:
         if os.path.exists(tickers_file):
             with open(tickers_file, 'r') as f:
@@ -79,7 +123,7 @@ def load_tickers(return_source_info=False):
         source_info['reason'] = f'Error loading file: {str(e)}'
         source_info['path'] = tickers_file
     
-    # Return default tickers as fallback
+    # Return default tickers as last resort
     if return_source_info:
         return default_tickers, source_info
     return default_tickers

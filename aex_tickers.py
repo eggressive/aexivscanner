@@ -3,9 +3,11 @@
 AEX Tickers Module - Single source of truth for AEX ticker symbols
 
 Usage:
-    python aex_tickers.py           # Display all tickers
-    python aex_tickers.py --source  # Display tickers with source info
-    python aex_tickers.py --check   # Check validity of ticker source
+    python aex_tickers.py             # Display all tickers
+    python aex_tickers.py --source    # Display tickers with source info
+    python aex_tickers.py --check     # Check validity of ticker source
+    python aex_tickers.py --update-json  # Update JSON file from CSV
+    python aex_tickers.py --investigate  # Investigate problematic tickers
 """
 
 import json
@@ -14,9 +16,43 @@ import logging
 import sys
 import argparse
 import csv
+import time
+import shutil
+from datetime import datetime
 
 # Setup logging
 logger = logging.getLogger(__name__)
+
+def update_json_from_csv(tickers, json_file):
+    """
+    Updates the tickers.json file with tickers from the CSV file
+    
+    Args:
+        tickers (list): List of ticker symbols to save
+        json_file (str): Path to the JSON file
+    """
+    backups_dir = os.path.join(os.path.dirname(__file__), 'backups')
+    os.makedirs(backups_dir, exist_ok=True)
+    
+    # Create backup if the file exists
+    if os.path.exists(json_file):
+        backup_file = os.path.join(backups_dir, f'tickers_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json')
+        try:
+            shutil.copy2(json_file, backup_file)
+            logger.info(f"Created backup of tickers.json at {backup_file}")
+        except Exception as e:
+            logger.warning(f"Failed to create backup: {str(e)}")
+    
+    # Update the JSON file
+    try:
+        data = {"AEX_TICKERS": tickers}
+        with open(json_file, 'w') as f:
+            json.dump(data, f, indent=4)
+        logger.info(f"Updated {json_file} with {len(tickers)} tickers from CSV file")
+        return True
+    except Exception as e:
+        logger.error(f"Error updating JSON file: {str(e)}")
+        return False
 
 def load_tickers(return_source_info=False, update_json=False):
     """
@@ -33,7 +69,7 @@ def load_tickers(return_source_info=False, update_json=False):
         If return_source_info=False: List of ticker symbols
         If return_source_info=True: Tuple of (tickers, source_info) where source_info is a dict
     """
-    # Try loading from CSV file first (primary source of truth)
+    # Define file paths
     csv_file = os.path.join(os.path.dirname(__file__), 'amsterdam_aex_tickers.csv')
     tickers_file = os.path.join(os.path.dirname(__file__), 'tickers.json')
     
@@ -72,7 +108,7 @@ def load_tickers(return_source_info=False, update_json=False):
                     'tickers_count': len(csv_tickers)
                 }
                 
-                # Update the JSON file if requested
+                # Update the JSON file if requested for backup purposes
                 if update_json:
                     update_json_from_csv(csv_tickers, tickers_file)
                     
@@ -123,10 +159,14 @@ def load_tickers(return_source_info=False, update_json=False):
         source_info['reason'] = f'Error loading file: {str(e)}'
         source_info['path'] = tickers_file
     
-    # Return default tickers as last resort
+    # Return empty list if no tickers are found
+    empty_list = []
+    source_info['source'] = 'no_tickers_found'
+    logger.error("No ticker sources available. Using empty list.")
+    
     if return_source_info:
-        return default_tickers, source_info
-    return default_tickers
+        return empty_list, source_info
+    return empty_list
 
 # Load tickers and get source info (but don't export the source info)
 tickers, source_info = load_tickers(return_source_info=True)
@@ -144,21 +184,26 @@ def check_ticker_source():
     print("================================")
     print(f"Source type: {source['source'].upper()}")
     
-    if source['source'] == 'json_file':
+    if source['source'] == 'csv_file':
+        print(f"CSV file path: {source['path']}")
+        print(f"Tickers count: {source['tickers_count']}")
+        print(f"Status: {source['reason']}")
+        print("\n✓ System is using tickers from the CSV file as the primary source of truth.")
+    elif source['source'] == 'json_file':
         print(f"JSON file path: {source['path']}")
         print(f"Tickers count: {source['tickers_count']}")
         print(f"Status: {source['reason']}")
-        print("\n✓ System is using tickers from the JSON configuration file as expected.")
+        print("\n⚠ System is using tickers from the JSON backup file.")
+        print("  Consider running euronext_tickers.py to refresh the CSV file.")
     else:
         print(f"Reason: {source['reason']}")
         print(f"Path attempted: {source['path']}")
-        print(f"Fallback tickers count: {source['tickers_count']}")
-        print("\n⚠ System is using DEFAULT tickers as a fallback!")
-        print("  This might not be what you want.")
+        print(f"Tickers count: {source['tickers_count']}")
+        print("\n⚠ System could not load tickers from either the CSV or JSON file!")
         print("\nTo fix this issue:")
-        print(f"1. Ensure '{os.path.basename(source['path'])}' exists in the application directory")
-        print("2. Check that the JSON file has the correct format with 'AEX_TICKERS' key")
-        print("3. Verify file permissions allow reading the file")
+        print("1. Run euronext_tickers.py to generate/update the amsterdam_aex_tickers.csv file")
+        print("2. Ensure file permissions are correct")
+        print("3. Check that the CSV file has the correct format with a 'yahoo_ticker' column")
 
 def display_tickers_with_source():
     """Display all tickers with source information"""
@@ -186,15 +231,37 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='AEX Tickers module - manage ticker symbols')
     parser.add_argument('--source', action='store_true', help='Display tickers with source information')
     parser.add_argument('--check', action='store_true', help='Check ticker source and configuration')
+    parser.add_argument('--update-json', action='store_true', help='Update tickers.json from amsterdam_aex_tickers.csv')
+    parser.add_argument('--investigate', action='store_true', help='Investigate problematic tickers')
     args = parser.parse_args()
     
     # Setup logging
     logging.basicConfig(level=logging.INFO)
     
-    if args.check:
+    if args.update_json:
+        # Load tickers from CSV and update JSON
+        tickers, source = load_tickers(return_source_info=True)
+        if source['source'] == 'csv_file':
+            json_file = os.path.join(os.path.dirname(__file__), 'tickers.json')
+            if update_json_from_csv(tickers, json_file):
+                print(f"Successfully updated {json_file} with {len(tickers)} tickers from CSV file")
+            else:
+                print(f"Error updating JSON file from CSV")
+        else:
+            print(f"Cannot update JSON: Failed to load tickers from CSV file")
+            print(f"Reason: {source['reason']}")
+    elif args.check:
         check_ticker_source()
     elif args.source:
         display_tickers_with_source()
+    elif args.investigate:
+        # Run the ticker investigation tool
+        investigate_script = os.path.join(os.path.dirname(__file__), 'investigate_problematic_tickers.py')
+        if os.path.exists(investigate_script):
+            print("Starting ticker investigation...")
+            os.system(f"python3 {investigate_script}")
+        else:
+            print(f"✗ Investigation script not found: {investigate_script}")
     else:
         # Default behavior - just print the tickers
         tickers = load_tickers()

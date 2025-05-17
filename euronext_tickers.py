@@ -1,5 +1,6 @@
 import time
 import json
+import os
 import pandas as pd
 from io import StringIO
 from selenium import webdriver
@@ -75,5 +76,21 @@ df['yahoo_ticker'] = df['euronext_ticker'].apply(lambda x: f"{x}.AS" if pd.notna
 # Print cleaned output
 print(df[['component', 'isin', 'euronext_ticker', 'yahoo_ticker']])
 
-# Optional: Save to CSV
-df[['component', 'isin', 'euronext_ticker', 'yahoo_ticker']].to_csv("amsterdam_aex_tickers.csv", index=False)
+# Save to CSV as the primary source of truth
+csv_path = os.path.join(os.path.dirname(__file__), "amsterdam_aex_tickers.csv")
+df[['component', 'isin', 'euronext_ticker', 'yahoo_ticker']].to_csv(csv_path, index=False)
+print(f"✅ Saved {len(df)} tickers to {csv_path}")
+
+# Update tickers.json backup file via the aex_tickers module
+try:
+    from aex_tickers import load_tickers, update_json_from_csv
+    tickers = list(df['yahoo_ticker'].dropna().values)
+    json_path = os.path.join(os.path.dirname(__file__), "tickers.json")
+    if update_json_from_csv(tickers, json_path):
+        print(f"✅ Updated backup in {json_path} with {len(tickers)} tickers")
+    else:
+        print(f"❌ Failed to update JSON backup")
+except Exception as e:
+    print(f"❌ Error updating JSON backup: {str(e)}")
+    
+print("\nSuggestion: Run 'aex_scanner.py' to test the tickers with the latest data")

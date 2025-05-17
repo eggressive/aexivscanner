@@ -2,9 +2,18 @@
 
 A live-updating Discounted Cash Flow (DCF) scanner for AEX (Amsterdam Exchange) stocks that pulls data from Yahoo Finance API, calculates valuations, and ranks stocks by undervaluation.
 
+## Recent Refactoring
+
+The codebase has been refactored to use a single source of truth for ticker symbols:
+
+- **amsterdam_aex_tickers.csv** is now the primary source of ticker data
+- **tickers.json** serves as a backup when the CSV is unavailable
+- All components now share the same ticker data source
+- Special case handling for problematic tickers has been implemented
+
 ## Features
 
-- Pulls real-time stock data from Yahoo Finance API
+- Pulls real-time stock data from Euronext website
 - Uses stored fair value estimates per stock
 - Calculates key metrics:
   - Market Cap
@@ -13,6 +22,11 @@ A live-updating Discounted Cash Flow (DCF) scanner for AEX (Amsterdam Exchange) 
   - Discount %
 - Auto-ranks stocks by undervaluation
 - Saves results to Excel with formatted output
+- Centralized ticker management system:
+  - Single source of truth for ticker symbols
+  - Robust error handling for API issues
+  - Special case handling for problematic tickers
+  - Automatic ticker updates from Euronext
 
 ## Installation
 
@@ -80,7 +94,15 @@ The scanner will:
 
 ## Fair Value Estimates
 
-Fair value estimates are stored in the `FAIR_VALUE_ESTIMATES` dictionary in `aex_scanner.py`. You can update these values based on your own DCF analysis or other valuation methods.
+The system supports multiple ways to manage fair value estimates, which are stored in the `FAIR_VALUE_ESTIMATES` dictionary in `aex_scanner.py`.
+
+### Fair Value Sources
+
+Fair values can be obtained from:
+
+1. **SimplyWall.st**: Manual entry using the helper script
+2. **Analyst Targets**: Automatic update using Yahoo Finance analyst target prices
+3. **Custom DCF Analysis**: Manual entry based on your own DCF calculations
 
 ### Updating from SimplyWall.st
 
@@ -120,46 +142,75 @@ You can use the included helper script to easily update fair values from [Simply
    ./update_fair_values.sh
    ```
 
+### Updating from Analyst Target Prices
+
+The system can automatically fetch analyst consensus target prices from Yahoo Finance:
+
+```bash
+python fair_value_updater.py
+```
+
+This script will:
+1. Fetch analyst target prices for all tickers in the centralized ticker list
+2. Save the values to `fair_values.json`
+3. Update the fair value estimates in `aex_scanner.py`
+4. Generate a detailed Excel report showing current prices vs. targets
+
+The `fair_value_updater.py` script uses Yahoo Finance's `targetMeanPrice` data point, which represents the consensus price target from analysts covering each stock. This provides an objective, market-based estimate of fair value that can be used alongside or instead of your own DCF analysis.
+
 The script will update the values in `aex_scanner.py` and keep a record of all updates in `simplywall_fair_values.json`. Each time you run the scanner (via `run_scanner.sh` or `aex_cli.py`), it will automatically apply all saved values to ensure your scanner is using the most recent fair values.
 
-## Adding More Stocks
+## Ticker Management System
+
+The codebase uses a centralized ticker management system with a clear source hierarchy:
+
+1. `amsterdam_aex_tickers.csv` - Primary source of truth for all ticker symbols
+2. `tickers.json` - Backup source used only when the CSV file is unavailable
+
+### Adding More Stocks
 
 To add more stocks to the scanner:
 
-1. Add the ticker symbol to the `tickers.json` file
+1. Add the ticker symbol to the `amsterdam_aex_tickers.csv` file
 2. Add a corresponding fair value estimate to the `FAIR_VALUE_ESTIMATES` dictionary in aex_scanner.py
-
-The `tickers.json` file serves as the single source of truth for all ticker symbols used across the application.
+3. Run `python aex_tickers.py --update-json` to update the backup JSON file
 
 ### Updating AEX Tickers
 
-You can automatically update the list of AEX components from Yahoo Finance:
+You can automatically update the list of AEX components from Euronext:
 
 ```bash
-# Update tickers.json with the latest AEX components
-./update_aex_tickers.sh
+# Update amsterdam_aex_tickers.csv with the latest AEX components
+python euronext_tickers.py
 ```
 
 This script will:
 
-- Scrape the current AEX components from Yahoo Finance
-- Update the tickers.json file with the latest ticker symbols
-- Create a backup of the previous tickers list
-- Verify the update was successful
+- Connect to Euronext to get the latest AEX components
+- Extract both Euronext and Yahoo Finance ticker symbols
+- Update the CSV file with the latest ticker symbols
+- Automatically update the backup JSON file
+- Create backups of previous ticker data
 
 ### Ticker Source Management
 
-The application includes tools to check where ticker symbols are being loaded from:
+The application includes powerful tools to manage and check ticker symbols:
 
 ```bash
 # Display all tickers with their source information
 python aex_tickers.py --source
 
 # Check if tickers are loaded from the expected source
-python aex_tickers.py --check 
+python aex_tickers.py --check
+
+# Update the backup JSON file from the primary CSV
+python aex_tickers.py --update-json
+
+# Investigate problematic tickers
+python aex_tickers.py --investigate
 ```
 
-This helps verify if the system is using tickers from the JSON file as expected or falling back to default tickers due to configuration issues.
+The system provides detailed diagnostics about where ticker symbols are being loaded from and can handle special cases for problematic tickers through a mapping system.
 
 ## Output
 
@@ -179,7 +230,7 @@ Stocks are ranked by discount percentage (undervaluation) in descending order. T
 ### Excel Features
 
 - **Header Descriptions**: Each column has a description explaining the data
-- **Conditional Formatting**: 
+- **Conditional Formatting**:
   - Undervalued stocks (≥10% discount) are highlighted in green
   - Overvalued stocks (≥10% premium) are highlighted in red
 - **Formatted Numbers**: All values are properly formatted with currency and percentage indicators
@@ -212,26 +263,43 @@ All visualizations are saved with timestamps to track when they were generated.
 The scanner organizes its files in the following directories:
 
 - **outputs/**: Contains all generated Excel files with the scan results
-  - Files are named with timestamps, e.g. `aex_stock_valuation_20250516_111000.xlsx`
-  
+  - Includes scan results and fair value update reports
+  - Files are named with timestamps, e.g., `aex_stock_valuation_20250516_111000.xlsx`
+
 - **visualizations/**: Contains all generated charts and visualizations
   - Charts are organized by type and include timestamps
-  
-- **backups/**: Contains backup files created when updating fair values
-  - Backups are created automatically before making changes
+  - Includes discount percentage, price comparison, and margin charts
 
-This organization keeps your workspace clean and makes it easier to find specific files.
+- **backups/**: Contains backup files created when updating data
+  - Includes backups of tickers.json and aex_scanner.py
+  - Backups are created automatically before making changes
+  - Naming convention includes date and time of backup
+
+## Key Files
+
+The codebase includes the following important files:
+
+- **aex_scanner.py**: Main scanner logic and fair value calculations
+- **aex_tickers.py**: Central ticker management module
+- **amsterdam_aex_tickers.csv**: Primary source of ticker data
+- **tickers.json**: Backup source of ticker data
+- **fair_value_updater.py**: Updates fair values from Yahoo Finance analyst targets
+- **euronext_tickers.py**: Updates ticker data from Euronext
+- **investigate_problematic_tickers.py**: Diagnostic tool for ticker issues
+
+This organization ensures proper separation of concerns and makes maintenance easier.
 
 ## Troubleshooting & Data Validation
 
 ### Handling Data Issues
 
-The scanner now includes robust error handling for common issues:
+The scanner includes robust error handling for common issues:
 
 - **Rate Limiting**: Implements exponential backoff with jitter to handle API rate limits
 - **Connection Issues**: Automatically retries failed connections
 - **Data Validation**: Validates data completeness before processing
 - **Error Reporting**: Provides detailed logs of data quality issues
+- **Special Cases**: Maps problematic tickers to working alternatives
 
 When running the scanner, you'll see a summary of successful and failed ticker retrievals:
 
@@ -290,6 +358,25 @@ For tickers with issues, the output will indicate what's missing:
 Validating DSM.AS...
   ⚠️ DSM.AS is missing 2/9 fields: currentPrice, sharesOutstanding
 ```
+
+### Investigating Problematic Tickers
+
+For a deeper analysis of ticker issues, use the investigation tool:
+
+```bash
+# Run the ticker investigation tool
+python aex_tickers.py --investigate
+```
+
+The investigation tool will:
+
+- Load tickers from the primary CSV source
+- Test each ticker against the Yahoo Finance API
+- Identify problematic tickers and suggest replacements
+- Generate special case mappings for consistent handling
+- Provide detailed diagnostic information
+
+This is especially useful when companies change ticker symbols (e.g., RDSA.AS → SHELL.AS) or when mergers affect ticker validity (e.g., DSM.AS → DSFIR.AS).
 
 ## License
 

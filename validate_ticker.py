@@ -17,13 +17,9 @@ sys.path.append('.')
 try:
     from aex_tickers import AEX_TICKERS
 except ImportError:
-    print("WARNING: Could not import AEX_TICKERS from aex_tickers.py, using default list")
-    # Default tickers as fallback
-    AEX_TICKERS = [
-        'ADYEN.AS', 'ASML.AS', 'AD.AS', 'AKZA.AS', 'ABN.AS', 'DSM.AS', 'HEIA.AS', 
-        'IMCD.AS', 'INGA.AS', 'KPN.AS', 'NN.AS', 'PHIA.AS', 'RAND.AS', 'REN.AS', 
-        'WKL.AS', 'URW.AS', 'UNA.AS', 'MT.AS', 'RDSA.AS', 'PRX.AS'
-    ]
+    print("ERROR: Could not import AEX_TICKERS from aex_tickers.py")
+    print("Please ensure the aex_tickers.py module is in the current directory.")
+    sys.exit(1)
 
 # Key fields we want to check
 KEY_FIELDS = [

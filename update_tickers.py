@@ -31,13 +31,6 @@ AEX_INDEX_TICKER = "^AEX"
 # Import ticker validation settings from central configuration
 from aex_tickers import load_tickers
 
-# Define known ticker mappings for special cases
-TICKER_SPECIAL_CASES = {
-    "RDSA.AS": "SHELL.AS",  # Shell ticker was renamed
-    "DSM.AS": "DSFIR.AS",   # DSM merged with Firmenich to become DSM Firmenich
-    "URW.AS": "URW.AS",     # Keep tracking this one despite validation issues
-}
-
 # Global parameters for validation
 VALIDATION_PARAMS = {
     'max_retries': 3,
@@ -166,20 +159,10 @@ def fetch_aex_components(validate=True):
             if validate:
                 # Validate each ticker by trying to fetch its data with retry logic
                 valid_tickers = []
-                problematic_included = []
                 
                 for ticker in potential_tickers:
                     # Add a small delay between requests to avoid overloading the API
                     time.sleep(0.2)
-                    
-                    # Handle known problematic tickers differently
-                    if ticker in TICKER_SPECIAL_CASES:
-                        # Use either the special case or the original ticker
-                        special_ticker = TICKER_SPECIAL_CASES[ticker]
-                        valid_tickers.append(special_ticker)
-                        problematic_included.append(f"{ticker} -> {special_ticker}")
-                        logger.info(f"Including special case ticker: {ticker} as {special_ticker}")
-                        continue
                     
                     # Use global validation parameters
                     if validate_ticker_with_retries(
@@ -189,9 +172,6 @@ def fetch_aex_components(validate=True):
                         http_error_multiplier=VALIDATION_PARAMS['http_error_multiplier']
                     ):
                         valid_tickers.append(ticker)
-                
-                if problematic_included:
-                    logger.info(f"Included {len(problematic_included)} known problematic tickers: {', '.join(problematic_included)}")
                 
                 components = valid_tickers
             else:

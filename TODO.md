@@ -2,32 +2,35 @@
 
 ## Future Enhancements
 
-1. Investigate ticker validation errors in update_tickers.py
-   - Debug HTTP 500 errors occurring with several tickers (ASML.AS, IMCD.AS, INGA.AS, MT.AS, RDSA.AS, TKWY.AS)
-   - Research why some tickers can't be validated (DSM.AS, URW.AS)
-   - Implement more robust error handling for these specific cases
-   - Consider adding a retry mechanism with longer delays for HTTP 500 errors
-   - Update documentation with troubleshooting steps for ticker validation issues
+1. Refactor FAIR_VALUE_ESTIMATES storage
+   - Move FAIR_VALUE_ESTIMATES from aex_scanner.py to an external JSON/YAML file
+   - Implement automatic loading mechanism in aex_scanner.py
+   - Create a dedicated updating tool with validation
+   - Add configuration option to select data source:
+     - External file (default)
+     - DCF calculation
+     - Yahoo Finance analyst targets
+     - SimplyWall.st values
+   - Support multiple sources with priority system
 
-2. Investigate possibility to download fair value estimates for free
-   - Research public APIs that provide DCF or fair value estimates
-   - Look for alternatives to SimplyWall.st that offer free data access
-   - Explore web scraping options (with proper respect for terms of service)
-   - Consider academic or open-source valuation models
+## Completed Enhancements
 
-3. Calculate simplified DCF model as a Python function
-   - Implement basic DCF calculation based on:
+1. ✅ Calculate simplified DCF model as a Python function
+   - Implemented DCF calculation based on:
      - Current free cash flow
      - Expected growth rate
      - Discount rate (WACC)
      - Terminal growth rate
-   - Add this as an alternative fair value source
-   - Create configuration options to choose between:
-     - Manual fair values
-     - SimplyWall.st values
-     - Calculated DCF values
+   - Added this as an alternative fair value source
+   - Implemented multiple valuation methods for different company types:
+     - FCF-based DCF for normal companies
+     - Earnings-based valuation for financial stocks
+     - Price-to-Book valuation as fallback for financial stocks
+     - P/E multiple as last resort fallback
+   - Added integration with AEX scanner via dcf_integration.py
+   - Added report generation capabilities
 
-## Completed Enhancements
+## More Completed Enhancements
 
 1. ✅ Implement robust error handling for Yahoo Finance API
    - Added exponential backoff with jitter for rate limiting
@@ -37,12 +40,8 @@
    - Built a diagnostic tool (`validate_ticker.py`) for troubleshooting
 
 2. ✅ Create a single source of truth for AEX stock tickers
-   - AEX_TICKERS are now stored in tickers.json
-   - All modules read from this common data source via aex_tickers.py:
-     - aex_scanner.py
-     - fair_value_updater.py
-     - aex_visualizer.py
-     - validate_ticker.py
+   - Ticker data is now stored in amsterdam_aex_tickers.csv with tickers.json as backup
+   - All modules read from this common data source via aex_tickers.py
    - Ensures consistent ticker lists across the application
    - Simplifies adding/removing stocks from the scanner
    
@@ -50,3 +49,32 @@
    - Removed filepath comments from tickers.json
    - Updated update_tickers.py to not add filepath comments
    - Ensured all modules use relative paths consistently
+   
+4. ✅ Investigate ticker validation errors in update_tickers.py
+   - Replaced TICKER_SPECIAL_CASES with direct data from Euronext
+   - Added new test_ticker_validation.py tool for comprehensive testing
+   - Enhanced validation with improved retry logic
+   - Updated documentation with troubleshooting steps
+
+5. ✅ Investigate possibility to download fair value estimates for free
+   - Implemented fair_value_updater.py to use Yahoo Finance analyst targets
+   - Integrated automated updates for fair values in aex_scanner.py
+   - Created backup mechanisms for fair value data
+
+6. ✅ Refactor ticker management to use a single source of truth
+   - Made `amsterdam_aex_tickers.csv` the primary source for ticker data
+   - Configured `tickers.json` as a backup source only
+   - Enhanced error handling and diagnostics in `aex_tickers.py`
+   - Updated all modules to use the centralized ticker management system
+
+7. ✅ Fix ticker validation and special case handling
+   - Removed `TICKER_SPECIAL_CASES` mappings from `update_tickers.py`
+   - Modified validation logic to rely on Euronext data directly
+   - Updated documentation with the new approach
+
+8. ✅ Improve ticker validation testing capabilities
+   - Refactored `test_ticker_validation.py` to accept command line parameters
+   - Added `--all` parameter to test all tickers from CSV file
+   - Added `--verbose` option to show detailed ticker information
+   - Added `--wait` parameter to control delay between API calls
+   - Improved output formatting with success/failure summaries

@@ -1,7 +1,18 @@
+# requirements.txt for AEX Scanner
+# Core data processing libraries
 pandas>=1.3.0
 numpy>=1.20.0
 yfinance>=0.1.70
 openpyxl>=3.0.0
 matplotlib>=3.4.0
 requests>=2.25.0
+
+# Web scraping libraries
 beautifulsoup4>=4.9.0
+selenium>=4.0.0
+
+# Terminal formatting
+colorama>=0.4.4
+
+# Visualization dependencies
+seaborn>=0.11.0

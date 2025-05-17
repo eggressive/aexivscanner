@@ -23,10 +23,10 @@ The codebase has been refactored to use a single source of truth for ticker symb
 - Auto-ranks stocks by undervaluation
 - Saves results to Excel with formatted output
 - Centralized ticker management system:
-  - Single source of truth for ticker symbols
+  - Single source of truth for ticker symbols with CSV file
   - Robust error handling for API issues
-  - Special case handling for problematic tickers
-  - Automatic ticker updates from Euronext
+  - Direct and reliable ticker data from Euronext
+  - Automatic ticker updates with Euronext website integration
 
 ## Installation
 
@@ -103,6 +103,42 @@ Fair values can be obtained from:
 1. **SimplyWall.st**: Manual entry using the helper script
 2. **Analyst Targets**: Automatic update using Yahoo Finance analyst target prices
 3. **Custom DCF Analysis**: Manual entry based on your own DCF calculations
+4. **Built-in DCF Model**: Automatically calculated DCF valuations using the integrated model
+
+### Using the Built-in DCF Model
+
+The system includes a sophisticated DCF model that can automatically calculate fair values:
+
+```bash
+python dcf_integration.py
+```
+
+The DCF model includes:
+
+- **Multiple Valuation Methods**:
+  - FCF-based DCF for non-financial companies
+  - Earnings-based valuation for financial stocks (banks, insurance)
+  - Price-to-Book valuation as a fallback for financial stocks
+  - P/E multiple as a final fallback option
+
+- **Features**:
+  - Automatic detection of financial vs. non-financial stocks
+  - Handling of negative free cash flows
+  - Adjustment for company-specific growth rates
+  - Risk-adjusted discount rates (WACC) based on beta
+  - Detailed DCF report generation in Excel format
+
+- **Report Generation**:
+  ```bash
+  python dcf_integration.py --report
+  ```
+  Creates a detailed Excel report with calculated fair values in the `outputs` directory.
+
+- **Fair Value Updates**:
+  ```bash
+  python dcf_integration.py --update
+  ```
+  Updates the `FAIR_VALUE_ESTIMATES` dictionary in `aex_scanner.py` with calculated DCF values.
 
 ### Updating from SimplyWall.st
 
@@ -210,7 +246,7 @@ python aex_tickers.py --update-json
 python aex_tickers.py --investigate
 ```
 
-The system provides detailed diagnostics about where ticker symbols are being loaded from and can handle special cases for problematic tickers through a mapping system.
+The system provides detailed diagnostics about where ticker symbols are being loaded from and ensures consistent ticker data by using Euronext as the authoritative source.
 
 ## Output
 
@@ -299,7 +335,7 @@ The scanner includes robust error handling for common issues:
 - **Connection Issues**: Automatically retries failed connections
 - **Data Validation**: Validates data completeness before processing
 - **Error Reporting**: Provides detailed logs of data quality issues
-- **Special Cases**: Maps problematic tickers to working alternatives
+- **Direct Data Source**: Uses Euronext as authoritative source of ticker data
 
 When running the scanner, you'll see a summary of successful and failed ticker retrievals:
 
@@ -372,11 +408,11 @@ The investigation tool will:
 
 - Load tickers from the primary CSV source
 - Test each ticker against the Yahoo Finance API
-- Identify problematic tickers and suggest replacements
-- Generate special case mappings for consistent handling
-- Provide detailed diagnostic information
+- Identify problematic tickers and provide diagnostics
+- Check data availability and completeness for each ticker
+- Provide detailed information about ticker validity
 
-This is especially useful when companies change ticker symbols (e.g., RDSA.AS → SHELL.AS) or when mergers affect ticker validity (e.g., DSM.AS → DSFIR.AS).
+This helps ensure that all tickers from Euronext are properly formatted and compatible with Yahoo Finance's data API.
 
 ## License
 

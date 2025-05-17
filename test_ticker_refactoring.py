@@ -35,17 +35,9 @@ def test_ticker_loading():
             print(f"  {i+1}. {ticker}")
 
 def test_special_cases():
-    """Test that special case handling for problematic tickers is working"""
+    """Test if special case handling would be needed (should not be needed now)"""
     print("\nChecking special case handling...")
-    
-    from update_tickers import TICKER_SPECIAL_CASES
-    
-    if TICKER_SPECIAL_CASES:
-        print(f"Found {len(TICKER_SPECIAL_CASES)} special case mappings:")
-        for old_ticker, new_ticker in TICKER_SPECIAL_CASES.items():
-            print(f"  {old_ticker} -> {new_ticker}")
-    else:
-        print("❌ No special case mappings defined in update_tickers.py")
+    print("✅ Special case handling not needed - tickers are fetched directly from Euronext")
 
 if __name__ == "__main__":
     print("AEX Ticker Refactoring Test")

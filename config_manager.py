@@ -37,13 +37,6 @@ def load_fair_values(source=None):
     Returns:
         dict: Dictionary of ticker symbols to fair values
     """
-    # Set up console logging to ensure visibility
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-    
     logger.info(f"Loading fair values with source parameter: {source}")
     if not os.path.exists(FAIR_VALUES_CONFIG_FILE):
         logger.warning(f"{FAIR_VALUES_CONFIG_FILE} not found, creating with empty values")

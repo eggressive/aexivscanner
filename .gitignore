@@ -102,8 +102,10 @@ ipython_config.py
 
 # Scanner output files
 *.xlsx
-*.json
-fair_values.json
+# The following JSON files should be kept in version control:
+# - tickers.json
+# - simplywall_fair_values.json
+# - fair_values.json
 .deps_installed
 
 # Visualizations
@@ -193,8 +195,7 @@ cython_debug/
 
 # Scanner output files
 *.xlsx
-*.json
-fair_values.json
+# keep JSON files in version control
 .deps_installed
 
 # Backup files

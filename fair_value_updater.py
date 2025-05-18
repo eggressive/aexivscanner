@@ -8,6 +8,8 @@ import pandas as pd
 import json
 import os
 import logging
+import time
+import random
 from datetime import datetime
 
 # Setup logging
@@ -21,12 +23,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# AEX stock tickers
-AEX_TICKERS = [
-    'ADYEN.AS', 'ASML.AS', 'AD.AS', 'AKZA.AS', 'ABN.AS', 'DSM.AS', 'HEIA.AS', 
-    'IMCD.AS', 'INGA.AS', 'KPN.AS', 'NN.AS', 'PHIA.AS', 'RAND.AS', 'REN.AS', 
-    'WKL.AS', 'URW.AS', 'UNA.AS', 'MT.AS', 'RDSA.AS', 'RELX.AS', 'PRX.AS'
-]
+# Import AEX stock tickers from central module
+from aex_tickers import AEX_TICKERS
 
 def update_fair_values():
     """
@@ -35,6 +33,10 @@ def update_fair_values():
     logger.info("Starting fair value update process...")
     
     fair_values_file = 'fair_values.json'
+    
+    # Create outputs directory if it doesn't exist
+    output_dir = "outputs"
+    os.makedirs(output_dir, exist_ok=True)
     
     # Load existing fair values if available
     if os.path.exists(fair_values_file):
@@ -51,18 +53,27 @@ def update_fair_values():
     # Create a DataFrame to store results
     results = []
     
+    # Add retry configuration
+    max_retries = 3
+    retry_delay = 2  # in seconds
+    
     for ticker in AEX_TICKERS:
-        try:
-            stock = yf.Ticker(ticker)
-            info = stock.info
-            
-            # Get analyst target price
-            target_price = info.get('targetMeanPrice')
-            current_price = info.get('currentPrice')
-            name = info.get('shortName', ticker)
-            
-            # If target price is available, use it as fair value
-            if target_price and current_price:
+        retries = 0
+        while retries <= max_retries:
+            try:
+                stock = yf.Ticker(ticker)
+                info = stock.info
+                
+                # Get analyst target price
+                target_price = info.get('targetMeanPrice')
+                current_price = info.get('currentPrice')
+                name = info.get('shortName', ticker)
+                
+                # Validate data completeness
+                if not target_price or not current_price:
+                    logger.warning(f"No target price or current price available for {ticker}")
+                    break
+                
                 # Calculate premium/discount
                 premium_discount = ((target_price / current_price) - 1) * 100
                 
@@ -82,11 +93,17 @@ def update_fair_values():
                 })
                 
                 logger.info(f"Updated {ticker}: Target Price = {target_price}")
-            else:
-                logger.warning(f"No target price available for {ticker}")
+                break  # Success, exit retry loop
                 
-        except Exception as e:
-            logger.error(f"Error updating {ticker}: {str(e)}")
+            except Exception as e:
+                if retries < max_retries:
+                    retries += 1
+                    wait_time = retry_delay * (2 ** retries) * (1 + random.random())
+                    logger.warning(f"Error fetching data for {ticker}, retrying in {wait_time:.2f} seconds: {str(e)}")
+                    time.sleep(wait_time)
+                else:
+                    logger.error(f"Failed to update {ticker} after {max_retries} retries: {str(e)}")
+                    break
     
     # Save updated fair values
     try:
@@ -99,12 +116,13 @@ def update_fair_values():
     # Create DataFrame and save to Excel
     if results:
         df = pd.DataFrame(results)
-        excel_file = f"fair_value_updates_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        excel_file_name = f"fair_value_updates_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        excel_file_path = os.path.join(output_dir, excel_file_name)
         
-        df.to_excel(excel_file, index=False)
-        logger.info(f"Saved update report to {excel_file}")
+        df.to_excel(excel_file_path, index=False)
+        logger.info(f"Saved update report to {excel_file_path}")
         
-        return fair_values, excel_file
+        return fair_values, excel_file_path
     else:
         logger.warning("No updates were made")
         return fair_values, None
@@ -168,5 +186,6 @@ if __name__ == "__main__":
     
     if report_file:
         print(f"Fair values updated successfully! Report saved to {report_file}")
+        print(f"You can find the report in the outputs directory.")
     else:
         print("No fair value updates were made.")

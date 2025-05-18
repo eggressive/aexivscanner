@@ -34,10 +34,7 @@ def run_visualizer():
 def update_fair_values():
     """Run the fair value updater"""
     logger.info("Running Fair Value Updater...")
-    # First apply any saved SimplyWall.st values
-    logger.info("Applying saved SimplyWall.st fair values...")
-    subprocess.run([sys.executable, 'update_simply_wall_st.py', '--apply-only'])
-    # Then run the analyst target price updater
+    # Run the analyst target price updater
     logger.info("Fetching analyst target prices...")
     subprocess.run([sys.executable, 'fair_value_updater.py'])
     
@@ -45,12 +42,18 @@ def setup_environment():
     """Check and set up the environment"""
     logger.info("Checking environment...")
     
+    # Create required directories
+    required_dirs = ['outputs', 'visualizations', 'backups']
+    for directory in required_dirs:
+        if not os.path.exists(directory):
+            logger.info(f"Creating {directory} directory...")
+            os.makedirs(directory, exist_ok=True)
+    
     # Check for required files
     required_files = [
         'aex_scanner.py',
         'aex_visualizer.py',
         'fair_value_updater.py',
-        'update_simply_wall_st.py',
         'requirements.txt'
     ]
     

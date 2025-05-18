@@ -37,6 +37,14 @@ def load_fair_values(source=None):
     Returns:
         dict: Dictionary of ticker symbols to fair values
     """
+    # Set up console logging to ensure visibility
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    logger.info(f"Loading fair values with source parameter: {source}")
     if not os.path.exists(FAIR_VALUES_CONFIG_FILE):
         logger.warning(f"{FAIR_VALUES_CONFIG_FILE} not found, creating with empty values")
         
@@ -82,11 +90,14 @@ def load_fair_values(source=None):
             sources = config.get('sources', {})
             
             # Get from all available sources based on priority
-            for src in config.get('priority', ['manual', 'dcf', 'analyst']):
+            priority_list = config.get('priority', ['manual', 'dcf', 'analyst'])
+            logger.info(f"Using priority order: {priority_list}")
+            for src in priority_list:
                 if src in sources:
                     for ticker, value in sources[src].items():
                         if ticker not in combined_values:  # Only add if not already added from higher priority
                             combined_values[ticker] = value
+                            logger.debug(f"Using {src} value for {ticker}: {value}")
             
             return combined_values
         elif source in config.get('sources', {}):

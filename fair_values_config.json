@@ -83,12 +83,12 @@
         }
     },
     "priority": [
-        "manual",
         "dcf",
+        "manual",
         "analyst"
     ],
     "last_updated": {
-        "time": "2025-05-18 17:54:10",
-        "source": "analyst"
+        "time": "2025-05-18 18:06:16",
+        "source": "dcf"
     }
 }

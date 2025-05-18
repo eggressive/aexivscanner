@@ -10,6 +10,20 @@ The codebase has been refactored to use a single source of truth for ticker symb
 - **tickers.json** serves as a backup when the CSV is unavailable
 - All components now share the same ticker data source
 
+### Script Consolidation (May 2025)
+
+To reduce redundancy and improve maintainability:
+
+- Consolidated `validate_ticker.py`, `ticker_validator.py`, and `test_ticker_validation.py` into a single comprehensive validation tool
+- The consolidated script now lives in `test_ticker_validation.py` with enhanced features:
+  - Basic ticker validation (`--all` or specific tickers)
+  - Field completeness checking (`--check-fields`)
+  - Detailed information display (`--verbose`)
+  - Full field listing (`--very-verbose`)
+- Symlinks maintain backward compatibility:
+  - `validate_ticker.py -> test_ticker_validation.py`
+  - `ticker_validator.py -> test_ticker_validation.py`
+
 ## Features
 
 - Pulls real-time stock data from Euronext website

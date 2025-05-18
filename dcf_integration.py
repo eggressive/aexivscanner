@@ -23,13 +23,14 @@ logger = logging.getLogger(__name__)
 
 def update_fair_values_with_dcf():
     """
-    Update fair values using the DCF model and save to the scanner
+    Update fair values using the DCF model and save to the configuration
     """
     logger.info("Updating fair values with DCF calculations...")
 
     try:
         # Import here to avoid circular imports
         from dcf_model import calculate_dcf_fair_values
+        from config_manager import save_fair_values
         
         # Calculate DCF fair values
         dcf_values = calculate_dcf_fair_values(AEX_TICKERS)
@@ -38,7 +39,7 @@ def update_fair_values_with_dcf():
             logger.error("No DCF values were calculated")
             return False
         
-        # Save to JSON file
+        # Save to DCF-specific JSON file for backward compatibility
         dcf_file = 'dcf_fair_values.json'
         try:
             with open(dcf_file, 'w') as f:
@@ -48,11 +49,18 @@ def update_fair_values_with_dcf():
                 }, f, indent=4)
             logger.info(f"Saved {len(dcf_values)} DCF fair values to {dcf_file}")
         except Exception as e:
-            logger.error(f"Error saving DCF fair values: {str(e)}")
+            logger.error(f"Error saving DCF fair values to legacy file: {str(e)}")
+            # Continue anyway since this is just for backward compatibility
+        
+        # Save to the configuration system
+        success = save_fair_values(dcf_values, source='dcf')
+        
+        if success:
+            logger.info(f"Successfully saved {len(dcf_values)} DCF fair values to configuration")
+            return True
+        else:
+            logger.error("Failed to save DCF fair values to configuration")
             return False
-            
-        # Update the scanner file
-        return update_scanner_file(dcf_values)
         
     except Exception as e:
         logger.error(f"Error updating fair values with DCF: {str(e)}")
@@ -60,7 +68,8 @@ def update_fair_values_with_dcf():
 
 def update_scanner_file(fair_values):
     """
-    Update the FAIR_VALUE_ESTIMATES dictionary in aex_scanner.py
+    Legacy method to update the FAIR_VALUE_ESTIMATES dictionary in aex_scanner.py
+    Now redirects to the configuration system
     
     Args:
         fair_values (dict): Dictionary of ticker symbols to fair values
@@ -68,64 +77,13 @@ def update_scanner_file(fair_values):
     Returns:
         bool: True if successful, False otherwise
     """
-    scanner_file = 'aex_scanner.py'
-    
-    # Create backups directory if it doesn't exist
-    backups_dir = 'backups'
-    os.makedirs(backups_dir, exist_ok=True)
+    logger.info("update_scanner_file() is deprecated. Using configuration system instead.")
     
     try:
-        # Read the file content
-        with open(scanner_file, 'r') as f:
-            content = f.read()
-        
-        # Create a backup
-        backup_file = f"{backups_dir}/aex_scanner_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.py"
-        try:
-            with open(backup_file, 'w') as f:
-                f.write(content)
-            logger.info(f"Created backup at {backup_file}")
-        except Exception as e:
-            logger.warning(f"Failed to create backup: {str(e)}")
-        
-        # Find the FAIR_VALUE_ESTIMATES dictionary
-        start_marker = "FAIR_VALUE_ESTIMATES = {"
-        end_marker = "}"
-        
-        start_pos = content.find(start_marker)
-        if start_pos == -1:
-            logger.error("Could not find FAIR_VALUE_ESTIMATES in the scanner file")
-            return False
-            
-        # Find the end of the dictionary
-        start_pos += len(start_marker)
-        level = 1
-        end_pos = start_pos
-        
-        while level > 0 and end_pos < len(content):
-            if content[end_pos] == '{':
-                level += 1
-            elif content[end_pos] == '}':
-                level -= 1
-            end_pos += 1
-        
-        # Create the new dictionary content
-        new_dict_content = "\n"
-        for ticker, value in fair_values.items():
-            new_dict_content += f"    '{ticker}': {value},\n"
-        
-        # Replace the old dictionary content
-        updated_content = content[:start_pos] + new_dict_content + content[end_pos-1:]
-        
-        # Write the updated content
-        with open(scanner_file, 'w') as f:
-            f.write(updated_content)
-            
-        logger.info(f"Successfully updated {scanner_file} with {len(fair_values)} DCF fair values")
-        return True
-        
+        from config_manager import save_fair_values
+        return save_fair_values(fair_values, source='dcf')
     except Exception as e:
-        logger.error(f"Error updating scanner file: {str(e)}")
+        logger.error(f"Error updating fair values: {str(e)}")
         return False
 
 def generate_dcf_report():

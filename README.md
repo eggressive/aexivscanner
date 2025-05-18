@@ -159,17 +159,23 @@ To reduce redundancy and improve maintainability:
 
 ## Fair Value Estimates
 
-The system supports multiple ways to manage fair value estimates, which are
-stored in the `FAIR_VALUE_ESTIMATES` dictionary in `aex_scanner.py`.
+The system supports multiple ways to manage fair value estimates using a centralized
+configuration system. All fair values are stored in `fair_values_config.json` and
+managed through the `config_manager.py` module.
 
 ### Fair Value Sources
 
-Fair values can be obtained from:
+The system supports multiple fair value sources with a priority system:
 
-1. **Analyst Targets**: Automatic update using Yahoo Finance analyst target prices
-2. **Custom DCF Analysis**: Manual entry based on your own DCF calculations
-3. **Built-in DCF Model**: Automatically calculated DCF valuations using the
-   integrated model
+1. **Manual Values**: Custom values entered manually (highest priority)
+2. **DCF Model**: Automatically calculated DCF valuations using the integrated model
+3. **Analyst Targets**: Automatic update using Yahoo Finance analyst target prices
+
+You can view the current configuration and sources by running:
+
+```bash
+python config_manager.py --show
+```
 
 ### Using the Built-in DCF Model
 
@@ -208,10 +214,7 @@ Creates a detailed Excel report with calculated fair values in the `outputs` dir
 python dcf_integration.py --update
 ```
 
-Updates the `FAIR_VALUE_ESTIMATES` dictionary in `aex_scanner.py` with calculated
-DCF values.
-
-
+Updates the fair value configuration with calculated DCF values.
 
 ### Updating from Analyst Target Prices
 
@@ -224,8 +227,8 @@ python fair_value_updater.py
 This script will:
 
 1. Fetch analyst target prices for all tickers in the centralized ticker list
-2. Save the values to `fair_values.json`
-3. Update the fair value estimates in `aex_scanner.py`
+2. Save the values to the configuration system under the 'analyst' source
+3. Maintain backward compatibility with `fair_values.json`
 4. Generate a detailed Excel report showing current prices vs. targets
 
 The `fair_value_updater.py` script uses Yahoo Finance's `targetMeanPrice` data,
@@ -233,10 +236,16 @@ which represents the consensus price target from analysts covering each stock.
 This provides an objective, market-based estimate of fair value that can be used
 alongside or instead of your own DCF analysis.
 
-The script will update the values in `aex_scanner.py` and keep a record of all
-updates in `fair_values.json`. Each time you run the scanner (via
-`run_scanner.sh` or `aex_cli.py`), it will automatically apply all saved values
-to ensure your scanner is using the most recent fair values.
+### Managing Fair Value Priorities
+
+You can control which fair value source takes precedence using:
+
+```bash
+python config_manager.py --set-priority manual dcf analyst
+```
+
+This example sets 'manual' as the highest priority, followed by 'dcf', then 'analyst'.
+The scanner will use the highest priority fair value available for each ticker.
 
 ## Ticker Management System
 
@@ -366,16 +375,20 @@ The scanner organizes its files in the following directories:
 
 The codebase includes the following important files:
 
-- **aex_scanner.py**: Main scanner logic and fair value calculations
+- **aex_scanner.py**: Main scanner logic and scanner execution
 - **aex_tickers.py**: Central ticker management module
 - **amsterdam_aex_tickers.csv**: Primary source of ticker data
 - **tickers.json**: Backup source of ticker data
+- **config_manager.py**: Fair value configuration management system
+- **fair_values_config.json**: Configuration file storing all fair value data
 - **fair_value_updater.py**: Updates fair values from Yahoo Finance analyst targets
 - **euronext_tickers.py**: Updates ticker data from Euronext
 - **dcf_model.py**: Core DCF modeling logic for stock valuation
-- **dcf_integration.py**: Integrates the DCF model with the AEX scanner
+- **dcf_integration.py**: Integrates the DCF model with the configuration system
 - **aex_visualizer.py**: Creates visualizations of scanner results
 - **test_ticker_validation.py**: Consolidated ticker validation tool
+- **check_aex_tickers.py**: AEX ticker validation utility
+- **investigate_problematic_tickers.py**: Detailed ticker troubleshooting tool
 - **aex_cli.py**: Command line interface for running the scanner
 - **run_scanner.sh**: Convenience script for running the scanner with latest fair values
 

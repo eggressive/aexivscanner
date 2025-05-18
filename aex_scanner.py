@@ -30,25 +30,35 @@ logger = logging.getLogger(__name__)
 # Import AEX stock tickers from central module
 from aex_tickers import AEX_TICKERS
 
-# Dictionary to store fair value estimates - add your own estimates based on analysis
-# These are fair value estimates sourced from various analysis methods
-FAIR_VALUE_ESTIMATES = {
-    'ABN.AS': 43.749602755014976,
-    'ADYEN.AS': 1450.257180439291,
-    'AGN.AS': 4.296617662626644,
-    'AKZA.AS': 11.915999999999997,
-    'MT.AS': 5.471999999999999,
-    'ASM.AS': 364.3983061286159,
-    'ASML.AS': 772.895474549062,
-    'ASRNL.AS': 50.76477289528813,
-    'BESI.AS': 31.244070504808047,
-    'DSFIR.AS': 69.66547898228222,
-    'EXO.AS': 179.54614862539535,
-    'HEIA.AS': 60.789479570195766,
-    'IMCD.AS': 83.87738813588052,
-    'INGA.AS': 24.764603597403546,
-    'PHIA.AS': 10.271006712116773,
-    'AD.AS': 148.28,
+# Import fair value estimates from the configuration manager
+from config_manager import load_fair_values
+
+# Load fair values from the configuration system
+# This will load values from all sources based on priority
+FAIR_VALUE_ESTIMATES = load_fair_values()
+
+# Check if we have any fair values, if not, try to initialize from the legacy dictionary
+if not FAIR_VALUE_ESTIMATES:
+    logger.warning("No fair value estimates found in configuration, using default values")
+    # Default values will remain here temporarily until migration is complete
+    # They will be moved to the configuration file by running config_manager.py --init
+    FAIR_VALUE_ESTIMATES = {
+        'ABN.AS': 43.749602755014976,
+        'ADYEN.AS': 1450.257180439291,
+        'AGN.AS': 4.296617662626644,
+        'AKZA.AS': 11.915999999999997,
+        'MT.AS': 5.471999999999999,
+        'ASM.AS': 364.3983061286159,
+        'ASML.AS': 772.895474549062,
+        'ASRNL.AS': 50.76477289528813,
+        'BESI.AS': 31.244070504808047,
+        'DSFIR.AS': 69.66547898228222,
+        'EXO.AS': 179.54614862539535,
+        'HEIA.AS': 60.789479570195766,
+        'IMCD.AS': 83.87738813588052,
+        'INGA.AS': 24.764603597403546,
+        'PHIA.AS': 10.271006712116773,
+        'AD.AS': 148.28,
     'KPN.AS': 4.189373543186509,
     'NN.AS': 51.64941843925036,
     'PRX.AS': 18.302040612330945,

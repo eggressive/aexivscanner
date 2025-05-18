@@ -144,6 +144,7 @@ if __name__ == "__main__":
     # Determine which tickers to test
     tickers_to_test = []
     
+    # Check for --all or specific tickers
     if args.all:
         print("Loading all tickers from CSV file...")
         tickers_to_test = load_all_tickers()

@@ -9,7 +9,6 @@ The codebase has been refactored to use a single source of truth for ticker symb
 - **amsterdam_aex_tickers.csv** is now the primary source of ticker data
 - **tickers.json** serves as a backup when the CSV is unavailable
 - All components now share the same ticker data source
-- Special case handling for problematic tickers has been implemented
 
 ## Features
 
@@ -241,9 +240,6 @@ python aex_tickers.py --check
 
 # Update the backup JSON file from the primary CSV
 python aex_tickers.py --update-json
-
-# Investigate problematic tickers
-python aex_tickers.py --investigate
 ```
 
 The system provides detailed diagnostics about where ticker symbols are being loaded from and ensures consistent ticker data by using Euronext as the authoritative source.
@@ -321,7 +317,6 @@ The codebase includes the following important files:
 - **tickers.json**: Backup source of ticker data
 - **fair_value_updater.py**: Updates fair values from Yahoo Finance analyst targets
 - **euronext_tickers.py**: Updates ticker data from Euronext
-- **investigate_problematic_tickers.py**: Diagnostic tool for ticker issues
 
 This organization ensures proper separation of concerns and makes maintenance easier.
 
@@ -394,23 +389,6 @@ For tickers with issues, the output will indicate what's missing:
 Validating DSM.AS...
   ⚠️ DSM.AS is missing 2/9 fields: currentPrice, sharesOutstanding
 ```
-
-### Investigating Problematic Tickers
-
-For a deeper analysis of ticker issues, use the investigation tool:
-
-```bash
-# Run the ticker investigation tool
-python aex_tickers.py --investigate
-```
-
-The investigation tool will:
-
-- Load tickers from the primary CSV source
-- Test each ticker against the Yahoo Finance API
-- Identify problematic tickers and provide diagnostics
-- Check data availability and completeness for each ticker
-- Provide detailed information about ticker validity
 
 This helps ensure that all tickers from Euronext are properly formatted and compatible with Yahoo Finance's data API.
 

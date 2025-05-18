@@ -7,7 +7,6 @@ Usage:
     python aex_tickers.py --source    # Display tickers with source info
     python aex_tickers.py --check     # Check validity of ticker source
     python aex_tickers.py --update-json  # Update JSON file from CSV
-    python aex_tickers.py --investigate  # Investigate problematic tickers
 """
 
 import json
@@ -232,7 +231,6 @@ if __name__ == "__main__":
     parser.add_argument('--source', action='store_true', help='Display tickers with source information')
     parser.add_argument('--check', action='store_true', help='Check ticker source and configuration')
     parser.add_argument('--update-json', action='store_true', help='Update tickers.json from amsterdam_aex_tickers.csv')
-    parser.add_argument('--investigate', action='store_true', help='Investigate problematic tickers')
     args = parser.parse_args()
     
     # Setup logging
@@ -254,14 +252,6 @@ if __name__ == "__main__":
         check_ticker_source()
     elif args.source:
         display_tickers_with_source()
-    elif args.investigate:
-        # Run the ticker investigation tool
-        investigate_script = os.path.join(os.path.dirname(__file__), 'investigate_problematic_tickers.py')
-        if os.path.exists(investigate_script):
-            print("Starting ticker investigation...")
-            os.system(f"python3 {investigate_script}")
-        else:
-            print(f"✗ Investigation script not found: {investigate_script}")
     else:
         # Default behavior - just print the tickers
         tickers = load_tickers()

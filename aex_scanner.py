@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 # Import AEX stock tickers from central module
 from aex_tickers import AEX_TICKERS
 
-# Dictionary to store fair value estimates - add your own estimates from SimplyWall.st
-# These are fair value estimates sourced from SimplyWall.st where available
+# Dictionary to store fair value estimates - add your own estimates based on analysis
+# These are fair value estimates sourced from various analysis methods
 FAIR_VALUE_ESTIMATES = {
     'ABN.AS': 43.749602755014976,
     'ADYEN.AS': 1450.257180439291,

@@ -10,7 +10,6 @@
      - External file (default)
      - DCF calculation
      - Yahoo Finance analyst targets
-     - SimplyWall.st values
    - Support multiple sources with priority system
 
 ## Completed Enhancements
@@ -44,12 +43,12 @@
    - All modules read from this common data source via aex_tickers.py
    - Ensures consistent ticker lists across the application
    - Simplifies adding/removing stocks from the scanner
-   
+
 3. ✅ Remove hardcoded file paths from JSON files
    - Removed filepath comments from tickers.json
    - Updated update_tickers.py to not add filepath comments
    - Ensured all modules use relative paths consistently
-   
+
 4. ✅ Investigate ticker validation errors in update_tickers.py
    - Replaced TICKER_SPECIAL_CASES with direct data from Euronext
    - Added new test_ticker_validation.py tool for comprehensive testing

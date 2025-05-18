@@ -1,1 +1,0 @@
-test_ticker_validation.py

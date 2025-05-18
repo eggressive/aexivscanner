@@ -38,17 +38,27 @@ def update_fair_values():
     output_dir = "outputs"
     os.makedirs(output_dir, exist_ok=True)
     
-    # Load existing fair values if available
-    if os.path.exists(fair_values_file):
-        try:
-            with open(fair_values_file, 'r') as f:
-                fair_values = json.load(f)
-                logger.info(f"Loaded existing fair values for {len(fair_values)} stocks")
-        except Exception as e:
-            logger.error(f"Error loading existing fair values: {str(e)}")
+    # Import configuration manager
+    from config_manager import load_fair_values
+    
+    # Load existing fair values from configuration if available
+    try:
+        # Load analyst values specifically, or initialize empty
+        fair_values = load_fair_values(source='analyst') or {}
+        logger.info(f"Loaded existing fair values for {len(fair_values)} stocks from configuration")
+    except Exception as e:
+        logger.error(f"Error loading fair values from configuration: {str(e)}")
+        # Fall back to legacy file
+        if os.path.exists(fair_values_file):
+            try:
+                with open(fair_values_file, 'r') as f:
+                    fair_values = json.load(f)
+                    logger.info(f"Loaded existing fair values from legacy file for {len(fair_values)} stocks")
+            except Exception as e:
+                logger.error(f"Error loading legacy fair values: {str(e)}")
+                fair_values = {}
+        else:
             fair_values = {}
-    else:
-        fair_values = {}
     
     # Create a DataFrame to store results
     results = []
@@ -105,13 +115,23 @@ def update_fair_values():
                     logger.error(f"Failed to update {ticker} after {max_retries} retries: {str(e)}")
                     break
     
-    # Save updated fair values
+    # Save updated fair values to both the configuration system and legacy file
+    from config_manager import save_fair_values
+    
+    # Save to configuration system
+    try:
+        save_fair_values(fair_values, source='analyst')
+        logger.info(f"Saved updated fair values to configuration")
+    except Exception as e:
+        logger.error(f"Error saving fair values to configuration: {str(e)}")
+    
+    # Save to legacy file for backward compatibility
     try:
         with open(fair_values_file, 'w') as f:
             json.dump(fair_values, f, indent=4)
-        logger.info(f"Saved updated fair values to {fair_values_file}")
+        logger.info(f"Saved updated fair values to legacy file {fair_values_file}")
     except Exception as e:
-        logger.error(f"Error saving fair values: {str(e)}")
+        logger.error(f"Error saving fair values to legacy file: {str(e)}")
     
     # Create DataFrame and save to Excel
     if results:
@@ -129,55 +149,16 @@ def update_fair_values():
 
 def update_scanner_file(fair_values):
     """
-    Update the fair value estimates in the aex_scanner.py file
+    Legacy method to update the fair value estimates in the aex_scanner.py file
+    Now redirects to the configuration system
     """
-    logger.info("Updating aex_scanner.py with new fair values...")
-    
-    scanner_file = 'aex_scanner.py'
+    logger.info("update_scanner_file() is deprecated. Using configuration system instead.")
     
     try:
-        # Read the file content
-        with open(scanner_file, 'r') as f:
-            content = f.read()
-        
-        # Find the FAIR_VALUE_ESTIMATES dictionary
-        start_marker = "FAIR_VALUE_ESTIMATES = {"
-        end_marker = "}"
-        
-        start_pos = content.find(start_marker)
-        if start_pos == -1:
-            logger.error("Could not find FAIR_VALUE_ESTIMATES in the scanner file")
-            return False
-            
-        # Find the end of the dictionary
-        start_pos += len(start_marker)
-        level = 1
-        end_pos = start_pos
-        
-        while level > 0 and end_pos < len(content):
-            if content[end_pos] == '{':
-                level += 1
-            elif content[end_pos] == '}':
-                level -= 1
-            end_pos += 1
-        
-        # Create the new dictionary content
-        new_dict_content = "\n"
-        for ticker, value in fair_values.items():
-            new_dict_content += f"    '{ticker}': {value},\n"
-        
-        # Replace the old dictionary content
-        updated_content = content[:start_pos] + new_dict_content + content[end_pos-1:]
-        
-        # Write the updated content
-        with open(scanner_file, 'w') as f:
-            f.write(updated_content)
-            
-        logger.info("Successfully updated scanner file with new fair values")
-        return True
-        
+        from config_manager import save_fair_values
+        return save_fair_values(fair_values, source='analyst')
     except Exception as e:
-        logger.error(f"Error updating scanner file: {str(e)}")
+        logger.error(f"Error updating fair values: {str(e)}")
         return False
 
 if __name__ == "__main__":

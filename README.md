@@ -21,6 +21,11 @@ stocks by undervaluation.
   - Robust error handling for API issues
   - Direct and reliable ticker data from Euronext
   - Automatic ticker updates with Euronext website integration
+- Multi-source fair value system:
+  - DCF model-based valuations (primary source)
+  - Manual override capability
+  - Analyst target price integration
+  - Configurable priority between sources
 
 ## Installation
 
@@ -94,207 +99,21 @@ The codebase has been refactored to use a single source of truth for ticker symb
 
 - **amsterdam_aex_tickers.csv** is now the primary source of ticker data
 - **tickers.json** serves as a backup when the CSV is unavailable
-- All components now share the same ticker data source
 
-#### Key Changes
+### 2. Fair Value Configuration System
 
-1. **Improved `aex_tickers.py` module as the central ticker provider**
-   - Updated `load_tickers()` to prioritize loading from CSV file first
-   - Added proper error handling and detailed diagnostics
-   - Implemented CSV file parsing with comment handling
-   - Added backup functionality through JSON file
-   - Created CLI options to check ticker sources and update JSON
+The codebase has been refactored to use a configurable fair value system:
 
-2. **Enhanced ticker management and diagnostics**
-   - Added `check_ticker_source()` to provide detailed information about ticker sources
-   - Improved `update_json_from_csv()` function to maintain backups of ticker data
-   - Added `--investigate` option to help diagnose problematic tickers
+- **Multiple sources of fair values:** DCF model, manual inputs, and analyst targets
+- **Configurable priority:** Define which source takes precedence (DCF is now primary)
+- **Centralized configuration:** All fair values managed through `fair_values_config.json`
 
-3. **Improved ticker handling**
-   - Removed hardcoded ticker lists in favor of loading from CSV
-   - Relies fully on Euronext as the authoritative source for tickers
-   - Improved validation logic for ticker data
-   - Enhanced error messages to guide users when ticker sources can't be found
+For detailed information on configuring and using the fair value system, see:
+[Fair Value Configuration Guide](docs/fair_value_configuration.md)
 
-4. **Updated `euronext_tickers.py` to work with new model**
-   - Made it populate the CSV file as the primary source of truth
-   - Added functionality to update the JSON backup file automatically
-   - Improved error handling and user feedback
+## Scanner Output
 
-5. **Added investigation tools**
-   - Created better diagnostic messages throughout the codebase
-   - Made the investigation tool more comprehensive
-
-#### Benefits
-
-1. **Single Source of Truth**: All components now share the same ticker data source
-2. **Better Maintainability**: Easier to update ticker data across the entire system
-3. **Improved Error Handling**: Clear error messages and diagnostics
-4. **Direct Data Source**: Tickers come directly from Euronext, eliminating
-   need for special case handling
-5. **Better Documentation**: CLI options and code comments explain the system design
-
-#### Management Commands
-
-- `python aex_tickers.py --check` to verify ticker sources
-- `python aex_tickers.py --update-json` to update JSON from CSV data
-- `python aex_tickers.py --investigate` to diagnose problematic tickers
-- `python euronext_tickers.py` to refresh ticker data from Euronext
-
-### 2. Script Consolidation
-
-To reduce redundancy and improve maintainability:
-
-- Consolidated `validate_ticker.py`, `ticker_validator.py`, and
-  `test_ticker_validation.py` into a single comprehensive validation tool
-- The consolidated script now lives in `test_ticker_validation.py` with
-  enhanced features:
-  - Basic ticker validation (`--all` or specific tickers)
-  - Field completeness checking (`--check-fields`)
-  - Detailed information display (`--verbose`)
-  - Full field listing (`--very-verbose`)
-- Symlinks maintain backward compatibility:
-  - `validate_ticker.py -> test_ticker_validation.py`
-  - `ticker_validator.py -> test_ticker_validation.py`
-
-## Fair Value Estimates
-
-The system supports multiple ways to manage fair value estimates, which are
-stored in the `FAIR_VALUE_ESTIMATES` dictionary in `aex_scanner.py`.
-
-### Fair Value Sources
-
-Fair values can be obtained from:
-
-1. **Analyst Targets**: Automatic update using Yahoo Finance analyst target prices
-2. **Custom DCF Analysis**: Manual entry based on your own DCF calculations
-3. **Built-in DCF Model**: Automatically calculated DCF valuations using the
-   integrated model
-
-### Using the Built-in DCF Model
-
-The system includes a sophisticated DCF model that can automatically calculate fair values:
-
-```bash
-python dcf_integration.py
-```
-
-The DCF model includes:
-
-- **Multiple Valuation Methods**:
-  - FCF-based DCF for non-financial companies
-  - Earnings-based valuation for financial stocks (banks, insurance)
-  - Price-to-Book valuation as a fallback for financial stocks
-  - P/E multiple as a final fallback option
-
-- **Features**:
-  - Automatic detection of financial vs. non-financial stocks
-  - Handling of negative free cash flows
-  - Adjustment for company-specific growth rates
-  - Risk-adjusted discount rates (WACC) based on beta
-  - Detailed DCF report generation in Excel format
-
-- **Report Generation**:
-
-```bash
-python dcf_integration.py --report
-```
-
-Creates a detailed Excel report with calculated fair values in the `outputs` directory.
-
-- **Fair Value Updates**:
-
-```bash
-python dcf_integration.py --update
-```
-
-Updates the `FAIR_VALUE_ESTIMATES` dictionary in `aex_scanner.py` with calculated
-DCF values.
-
-
-
-### Updating from Analyst Target Prices
-
-The system can automatically fetch analyst consensus target prices from Yahoo Finance:
-
-```bash
-python fair_value_updater.py
-```
-
-This script will:
-
-1. Fetch analyst target prices for all tickers in the centralized ticker list
-2. Save the values to `fair_values.json`
-3. Update the fair value estimates in `aex_scanner.py`
-4. Generate a detailed Excel report showing current prices vs. targets
-
-The `fair_value_updater.py` script uses Yahoo Finance's `targetMeanPrice` data,
-which represents the consensus price target from analysts covering each stock.
-This provides an objective, market-based estimate of fair value that can be used
-alongside or instead of your own DCF analysis.
-
-The script will update the values in `aex_scanner.py` and keep a record of all
-updates in `fair_values.json`. Each time you run the scanner (via
-`run_scanner.sh` or `aex_cli.py`), it will automatically apply all saved values
-to ensure your scanner is using the most recent fair values.
-
-## Ticker Management System
-
-The codebase uses a centralized ticker management system with a clear source
-hierarchy:
-
-1. `amsterdam_aex_tickers.csv` - Primary source of truth for all ticker symbols
-2. `tickers.json` - Backup source used only when the CSV file is unavailable
-
-### Adding More Stocks
-
-To add more stocks to the scanner:
-
-1. Add the ticker symbol to the `amsterdam_aex_tickers.csv` file
-2. Add a corresponding fair value estimate to the `FAIR_VALUE_ESTIMATES` dictionary
-   in aex_scanner.py
-3. Run `python aex_tickers.py --update-json` to update the backup JSON file
-
-### Updating AEX Tickers
-
-You can automatically update the list of AEX components from Euronext:
-
-```bash
-# Update amsterdam_aex_tickers.csv with the latest AEX components
-python euronext_tickers.py
-```
-
-This script will:
-
-- Connect to Euronext to get the latest AEX components
-- Extract both Euronext and Yahoo Finance ticker symbols
-- Update the CSV file with the latest ticker symbols
-- Automatically update the backup JSON file
-- Create backups of previous ticker data
-
-### Ticker Source Management
-
-The application includes powerful tools to manage and check ticker symbols:
-
-```bash
-# Display all tickers with their source information
-python aex_tickers.py --source
-
-# Check if tickers are loaded from the expected source
-python aex_tickers.py --check
-
-# Update the backup JSON file from the primary CSV
-python aex_tickers.py --update-json
-```
-
-The system provides detailed diagnostics about where ticker symbols are being
-loaded from and ensures consistent ticker data by using Euronext as the
-authoritative source.
-
-## Output
-
-The scanner generates an Excel file in the `outputs/` directory with the
-following metrics:
+The scanner generates an Excel file with the following columns:
 
 - **Ticker**: Stock ticker symbol (Amsterdam Exchange)
 - **Company**: Company name
@@ -366,16 +185,20 @@ The scanner organizes its files in the following directories:
 
 The codebase includes the following important files:
 
-- **aex_scanner.py**: Main scanner logic and fair value calculations
+- **aex_scanner.py**: Main scanner logic and scanner execution
 - **aex_tickers.py**: Central ticker management module
 - **amsterdam_aex_tickers.csv**: Primary source of ticker data
 - **tickers.json**: Backup source of ticker data
+- **config_manager.py**: Fair value configuration management system
+- **fair_values_config.json**: Configuration file storing all fair value data
 - **fair_value_updater.py**: Updates fair values from Yahoo Finance analyst targets
 - **euronext_tickers.py**: Updates ticker data from Euronext
 - **dcf_model.py**: Core DCF modeling logic for stock valuation
-- **dcf_integration.py**: Integrates the DCF model with the AEX scanner
+- **dcf_integration.py**: Integrates the DCF model with the configuration system
 - **aex_visualizer.py**: Creates visualizations of scanner results
 - **test_ticker_validation.py**: Consolidated ticker validation tool
+- **check_aex_tickers.py**: AEX ticker validation utility
+- **investigate_problematic_tickers.py**: Detailed ticker troubleshooting tool
 - **aex_cli.py**: Command line interface for running the scanner
 - **run_scanner.sh**: Convenience script for running the scanner with latest fair values
 
